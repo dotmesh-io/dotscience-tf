@@ -14,7 +14,7 @@ resource "aws_cloudformation_stack" "dotscience-hub" {
   capabilities = ["CAPABILITY_IAM"]
   parameters = {
     # Example param
-    KeyName = "luke-again-2"
+    KeyName = "luke-us-east-1-again-2"
     HubIngressCIDR = "0.0.0.0/0"
     SSHAccessCIDR = "0.0.0.0/0"
     AdminPassword = "HelloWorld"
