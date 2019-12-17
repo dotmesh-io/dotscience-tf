@@ -11,7 +11,7 @@ resource "aws_cloudformation_stack" "dotscience-hub" {
   #   aws s3 cp dotscience-cf.json s3://dotscience-cf-templates/dotscience-cf-1f6a73da40822d800bf5b8b590235598ef94cb04.json
 
   template_url = "https://s3.amazonaws.com/dotscience-cf-templates/dotscience-cf-1f6a73da40822d800bf5b8b590235598ef94cb04.json"
-
+  capabilities = ["CAPABILITY_IAM"]
   parameters = {
     # Example param
     KeyName = "luke-again-2"
