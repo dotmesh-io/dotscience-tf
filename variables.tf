@@ -16,7 +16,7 @@ variable "dotscience_ssh_access_cidr" {
 }
 
 variable "dotscience_hub_admin_password" {
-  default "insecure_do_not_use"
+  default = "insecure_do_not_use"
 }
 
 variable "map_accounts" {
