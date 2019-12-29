@@ -9,10 +9,9 @@ resource "aws_cloudformation_stack" "dotscience-hub" {
   template_url = "https://s3.amazonaws.com/dotscience-cf-templates/dotscience-cf-1f6a73da40822d800bf5b8b590235598ef94cb04.json"
   capabilities = ["CAPABILITY_IAM"]
   parameters = {
-    # Example param
-    KeyName = var.ssh_key
-    HubIngressCIDR = "0.0.0.0/0"
-    SSHAccessCIDR = "0.0.0.0/0"
-    AdminPassword = "HelloWorld"
+    KeyName = var.dotscience_hub_ssh_key
+    HubIngressCIDR = var.dotscience_hub_ingress_cidr
+    SSHAccessCIDR = var.dotscience_ssh_access_cidr
+    AdminPassword = var.dotscience_hub_admin_password
   }
 }

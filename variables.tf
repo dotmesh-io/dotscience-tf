@@ -1,9 +1,22 @@
 variable "region" {
+  # only supported zone for devel dotscience cft builds is us-east-1
   default = "us-east-1"
 }
 
-variable "ssh_key" {
+variable "dotscience_hub_ssh_key" {
   default = "luke-us-east-1"
+}
+
+variable "dotscience_hub_ingress_cidr" {
+  default = "0.0.0.0/0"
+}
+
+variable "dotscience_ssh_access_cidr" {
+  default = "0.0.0.0/0"
+}
+
+variable "dotscience_hub_admin_password" {
+  default "insecure_do_not_use"
 }
 
 variable "map_accounts" {

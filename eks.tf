@@ -61,20 +61,20 @@ resource "aws_security_group" "worker_group_mgmt_one" {
   }
 }
 
-resource "aws_security_group" "worker_group_mgmt_two" {
-  name_prefix = "worker_group_mgmt_two"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    from_port = 22
-    to_port   = 22
-    protocol  = "tcp"
-
-    cidr_blocks = [
-      "192.168.0.0/16",
-    ]
-  }
-}
+#resource "aws_security_group" "worker_group_mgmt_two" {
+#  name_prefix = "worker_group_mgmt_two"
+#  vpc_id      = module.vpc.vpc_id
+#
+#  ingress {
+#    from_port = 22
+#    to_port   = 22
+#    protocol  = "tcp"
+#
+#    cidr_blocks = [
+#      "192.168.0.0/16",
+#    ]
+#  }
+#}
 
 resource "aws_security_group" "all_worker_mgmt" {
   name_prefix = "all_worker_management"
@@ -142,13 +142,13 @@ module "eks" {
       asg_desired_capacity          = 2
       additional_security_group_ids = [aws_security_group.worker_group_mgmt_one.id]
     },
-    {
-      name                          = "worker-group-2"
-      instance_type                 = "t2.medium"
-      additional_userdata           = "echo foo bar"
-      additional_security_group_ids = [aws_security_group.worker_group_mgmt_two.id]
-      asg_desired_capacity          = 1
-    },
+#    {
+#      name                          = "worker-group-2"
+#      instance_type                 = "t2.medium"
+#      additional_userdata           = "echo foo bar"
+#      additional_security_group_ids = [aws_security_group.worker_group_mgmt_two.id]
+#      asg_desired_capacity          = 1
+#    },
   ]
 
   worker_additional_security_group_ids = [aws_security_group.all_worker_mgmt.id]
