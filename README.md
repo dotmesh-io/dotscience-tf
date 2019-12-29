@@ -1,8 +1,6 @@
 # dotscience-tf
 
-edit main.tf and set KeyName and AdminPassword
-
-TODO: factor these out to inputs
+edit variables.tf and set `dotscience_hub_ssh_key` and `dotscience_hub_admin_password`
 
 Deploy the stack:
 ```
