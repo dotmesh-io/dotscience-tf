@@ -13,5 +13,7 @@ resource "aws_cloudformation_stack" "dotscience-hub" {
     HubIngressCIDR = var.dotscience_hub_ingress_cidr
     SSHAccessCIDR = var.dotscience_ssh_access_cidr
     AdminPassword = var.dotscience_hub_admin_password
+    HubInstanceType = var.dotscience_hub_instance_type
+    HubVolumeSize = var.dotscience_hub_volume_size_gb
   }
 }
