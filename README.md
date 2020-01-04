@@ -48,3 +48,6 @@ The deployer should go green in the Dotscience web interface.
 ## tutorial
 
 TODO: insert basic end-to-end data science tutorial here.
+
+TODO: https://github.com/dotmesh-io/dotscience-aws/issues/55 and wire in grafana
+Also set up routes to grafana
