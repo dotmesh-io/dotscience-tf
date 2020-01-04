@@ -1,5 +1,10 @@
+resource "random_string" "hub_suffix" {
+  length  = 8
+  special = false
+}
+
 resource "aws_cloudformation_stack" "dotscience-hub" {
-  name = "dotscience-hub"
+  name = "dotscience-hub-${random_string.suffix.result}"
   # Created this template_url by first creating a bucket:
   #   aws s3 mb s3://dotscience-cf-templates
   # Then going to https://gitlab.dotmesh.com/dotmesh/dotscience-aws-sync/pipelines and clicking publish_manual on the latest pipeline.
