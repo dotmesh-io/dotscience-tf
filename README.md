@@ -4,12 +4,14 @@
 
 edit variables.tf and set `dotscience_hub_ssh_key` and `dotscience_hub_admin_password`
 
-Deploy the stack:
 ```
-terraform apply -auto-approve || (sleep 30; terraform apply -auto-approve)
+terraform init
 ```
 
-The ugly sleep & retry hopefully won't be necessary once [this PR](https://github.com/terraform-aws-modules/terraform-aws-eks/pull/639) makes it into a stable release.
+Deploy the stack:
+```
+terraform apply
+```
 
 ## 2. connect eks cluster as dotscience deployer
 
