@@ -9,7 +9,7 @@ Deploy the stack:
 terraform apply -auto-approve || (sleep 30; terraform apply -auto-approve)
 ```
 
-The ugly sleep & retry hopefully won't be necessary once [https://github.com/terraform-aws-modules/terraform-aws-eks/pull/639](this PR) makes it into a stable release.
+The ugly sleep & retry hopefully won't be necessary once [this PR](https://github.com/terraform-aws-modules/terraform-aws-eks/pull/639) makes it into a stable release.
 
 ## 2. connect eks cluster as dotscience deployer
 
