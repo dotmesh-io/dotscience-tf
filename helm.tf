@@ -1,16 +1,33 @@
 # Give tiller a service account with cluster-admin role.
 # See https://github.com/terraform-providers/terraform-provider-helm/issues/77
 
-resource "kubernetes_service_account" "tiller_service_account" {
+# Also https://github.com/hashicorp/terraform/issues/21008#issuecomment-531496335
+# for why we name the role binding the same as the service account... to avoid
+# destroy failing due to destroying things in the wrong order and failing
+
+provider "helm" {
+  service_account = kubernetes_cluster_role_binding.tiller.metadata.0.name
+  namespace       = kubernetes_service_account.tiller.metadata.0.namespace
+  install_tiller  = true
+  # Same creds as we hand to the kubernetes provider in eks.tf
+  kubernetes {
+    host                   = data.aws_eks_cluster.cluster.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
+    token                  = data.aws_eks_cluster_auth.cluster.token
+    load_config_file       = false
+  }
+}
+
+resource "kubernetes_service_account" "tiller" {
   metadata {
-    name = "tiller"
+    name      = "tiller"
     namespace = "kube-system"
   }
 }
 
-resource "kubernetes_cluster_role_binding" "tiller_cluster_role_binding" {
+resource "kubernetes_cluster_role_binding" "tiller" {
   metadata {
-    name = "tiller"
+    name = kubernetes_service_account.tiller.metadata.0.name
   }
   role_ref {
     api_group = "rbac.authorization.k8s.io"
@@ -19,18 +36,7 @@ resource "kubernetes_cluster_role_binding" "tiller_cluster_role_binding" {
   }
   subject {
     kind      = "ServiceAccount"
-    name      = kubernetes_service_account.tiller_service_account.metadata.0.name
-    namespace = "kube-system"
-  }
-}
-
-provider "helm" {
-  service_account = kubernetes_service_account.tiller_service_account.metadata.0.name
-  # Same creds as we hand to the kubernetes provider in eks.tf
-  kubernetes {
-    host                   = data.aws_eks_cluster.cluster.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
-    token                  = data.aws_eks_cluster_auth.cluster.token
-    load_config_file       = false
+    name      = kubernetes_service_account.tiller.metadata.0.name
+    namespace = kubernetes_service_account.tiller.metadata.0.namespace
   }
 }
