@@ -1,10 +1,3 @@
-# Example
-resource "kubernetes_namespace" "ns" {
-  metadata {
-    name = "test1"
-  }
-}
-
 # Prom + Grafana
 resource "helm_release" "prometheus" {
   name  = "prometheus"
