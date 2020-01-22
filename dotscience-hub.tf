@@ -8,10 +8,10 @@ resource "aws_cloudformation_stack" "dotscience-hub" {
   # Created this template_url by first creating a bucket:
   #   aws s3 mb s3://dotscience-cf-templates
   # Then going to https://gitlab.dotmesh.com/dotmesh/dotscience-aws-sync/pipelines and clicking publish_manual on the latest pipeline.
-  #   wget https://get.dotmesh.io/dotscience-aws/3ebcf7933c3685ab04ed67e50195c7843f2d6665/dotscience-cf.json
-  #   aws s3 cp dotscience-cf.json s3://dotscience-cf-templates/dotscience-cf-3ebcf7933c3685ab04ed67e50195c7843f2d6665.json
+  #   https://get.dotmesh.io/dotscience-aws/1436d2201cef06a3e8285f3a9adc591f72920dfa/dotscience-cf.json
+  #   aws s3 cp dotscience-cf.json s3://dotscience-cf-templates/dotscience-cf-1436d2201cef06a3e8285f3a9adc591f72920dfa.json
 
-  template_url = "https://s3.amazonaws.com/dotscience-cf-templates/dotscience-cf-3ebcf7933c3685ab04ed67e50195c7843f2d6665.json"
+  template_url = "https://s3.amazonaws.com/dotscience-cf-templates/dotscience-cf-1436d2201cef06a3e8285f3a9adc591f72920dfa.json"
   capabilities = ["CAPABILITY_IAM"]
   parameters = {
     KeyName = var.dotscience_hub_ssh_key
