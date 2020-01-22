@@ -24,6 +24,7 @@ variable "dotscience_hub_admin_password" {
 # Total = $0.02 * 3 = $0.06/hour, or $43/month for compute
 # Storage defaults to 1TB of gp2 storage, ($0.1/GB, so $102/month)
 # So default stack should be $145/month + burstable compute for runners.
+# + EKS is $140/month!
 
 variable "dotscience_hub_instance_type" {
   default = "t3.small"
