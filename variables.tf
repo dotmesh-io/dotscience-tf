@@ -42,6 +42,8 @@ variable "eks_cluster_worker_count" {
   default = 2
 }
 
+# -----------------
+
 variable "map_accounts" {
   description = "Additional AWS account numbers to add to the aws-auth configmap."
   type        = list(string)
