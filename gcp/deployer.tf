@@ -173,6 +173,7 @@ resource "kubernetes_deployment" "dotscience_deployer" {
         }
 
         service_account_name = "dotscience-deployer"
+        automount_service_account_token = true
       }
     }
   }
