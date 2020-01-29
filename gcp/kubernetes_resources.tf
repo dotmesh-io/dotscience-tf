@@ -56,6 +56,10 @@ resource "helm_release" "grafana" {
   name  = "grafana"
   chart = "stable/grafana"
 
+  depends_on = [
+    kubernetes_secret.grafana_admin
+  ]
+
   set {
     name  = "persistence.enabled"
     value = "true"
