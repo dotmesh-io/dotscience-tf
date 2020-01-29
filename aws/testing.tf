@@ -1,7 +1,7 @@
-variable "region" {
+#variable "region" {
   # only supported zone for devel dotscience cft builds is us-east-1
-  default = "us-east-1"
-}
+#  default = "us-east-1"
+#}
 
 variable "dotscience_hub_ssh_key" {
   default = "luke-us-east-1"

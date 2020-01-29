@@ -1,4 +1,4 @@
-variable "version" {
+variable "dotscience_version" {
   description = "Version information for this build that released this Terraform configuration"
   type = string
   default = "DotScience devel 2020-01-21 16-26-19 aa3a1651b07b471bffd103fb5e23f4b04d6a8ba3"
@@ -115,10 +115,10 @@ variable "grafana_user" {
   description = "The admin username for the Grafana server, used for Dotscience Hub monitoring"
   type        = string
   default     = ""
-} 
+}
 
 variable "grafana_password" {
-  description = "The password for the Grafana admin user, used for Dotscience Hub monitoring",
+  description = "The password for the Grafana admin user, used for Dotscience Hub monitoring"
   type        = string
   default     = ""
 }
