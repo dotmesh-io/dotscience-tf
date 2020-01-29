@@ -66,3 +66,7 @@ resource "helm_release" "grafana" {
     value = var.grafana_admin_password
   }
 }
+
+output "grafana_host" {
+  value = kubernetes_service.grafana_lb.load_balancer_ingress[0].ip
+}
