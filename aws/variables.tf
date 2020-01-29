@@ -100,16 +100,15 @@ variable "grafana_host" {
   default     = ""
 }
 
-variable "grafana_user" {
-  description = "The admin username for the Grafana server, used for Dotscience Hub monitoring"
-  type        = string
-  default     = ""
-}
-
-variable "grafana_password" {
+variable "grafana_admin_user" {
   description = "The password for the Grafana admin user, used for Dotscience Hub monitoring"
   type        = string
-  default     = ""
+  default = "admin"
+}
+
+variable "grafana_admin_password" {
+  description = "The password for the Grafana admin user, used for Dotscience Hub monitoring"
+  type        = string
 }
 
 variable "eks_cluster_worker_instance_type" {
