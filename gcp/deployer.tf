@@ -78,103 +78,103 @@ resource "kubernetes_service" "dotscience_deployer" {
   }
 }
 
-resource "kubernetes_deployment" "dotscience_deployer" {
-  metadata {
-    name      = "dotscience-deployer"
-    namespace = "dotscience-deployer"
+# resource "kubernetes_deployment" "dotscience_deployer" {
+#   metadata {
+#     name      = "dotscience-deployer"
+#     namespace = "dotscience-deployer"
 
-    labels = {
-      app = "dotscience-deployer"
-    }
+#     labels = {
+#       app = "dotscience-deployer"
+#     }
 
-    annotations = {
-      "keel.sh/policy" = "force"
+#     annotations = {
+#       "keel.sh/policy" = "force"
 
-      "keel.sh/pollSchedule" = "@every 1m"
+#       "keel.sh/pollSchedule" = "@every 1m"
 
-      "keel.sh/trigger" = "poll"
-    }
-  }
+#       "keel.sh/trigger" = "poll"
+#     }
+#   }
 
-  spec {
-    replicas = 1
+#   spec {
+#     replicas = 1
 
-    selector {
-      match_labels = {
-        app = "dotscience-deployer"
-      }
-    }
+#     selector {
+#       match_labels = {
+#         app = "dotscience-deployer"
+#       }
+#     }
 
-    template {
-      metadata {
-        labels = {
-          app = "dotscience-deployer"
-        }
-      }
+#     template {
+#       metadata {
+#         labels = {
+#           app = "dotscience-deployer"
+#         }
+#       }
 
-      spec {
-        container {
-          name    = "deployer"
-          image   = "quay.io/dotmesh/dotscience-deployer:latest"
-          command = ["ds-deployer", "run"]
+#       spec {
+#         container {
+#           name    = "deployer"
+#           image   = "quay.io/dotmesh/dotscience-deployer:latest"
+#           command = ["ds-deployer", "run"]
 
-          port {
-            container_port = 9300
-          }
+#           port {
+#             container_port = 9300
+#           }
 
-          env {
-            name = "NAMESPACE"
+#           env {
+#             name = "NAMESPACE"
 
-            value_from {
-              field_ref {
-                field_path = "metadata.namespace"
-              }
-            }
-          }
+#             value_from {
+#               field_ref {
+#                 field_path = "metadata.namespace"
+#               }
+#             }
+#           }
 
-          env {
-            name  = "GATEWAY_ADDRESS"
-            value = "${local.hub_hostname}:8800"
-          }
+#           env {
+#             name  = "GATEWAY_ADDRESS"
+#             value = "${local.hub_hostname}:8800"
+#           }
 
-          env {
-            name  = "TOKEN"
-            value = random_id.deployer_token.hex
-          }
+#           env {
+#             name  = "TOKEN"
+#             value = random_id.deployer_token.hex
+#           }
 
-          env {
-            name  = "HEALTH_PORT"
-            value = "9300"
-          }
+#           env {
+#             name  = "HEALTH_PORT"
+#             value = "9300"
+#           }
 
-          resources {
-            limits {
-              cpu    = "600m"
-              memory = "512Mi"
-            }
+#           resources {
+#             limits {
+#               cpu    = "600m"
+#               memory = "512Mi"
+#             }
 
-            requests {
-              cpu    = "100m"
-              memory = "128Mi"
-            }
-          }
+#             requests {
+#               cpu    = "100m"
+#               memory = "128Mi"
+#             }
+#           }
 
-          liveness_probe {
-            http_get {
-              path = "/health"
-              port = "9300"
-            }
+#           liveness_probe {
+#             http_get {
+#               path = "/health"
+#               port = "9300"
+#             }
 
-            initial_delay_seconds = 30
-            timeout_seconds       = 10
-          }
+#             initial_delay_seconds = 30
+#             timeout_seconds       = 10
+#           }
 
-          image_pull_policy = "Always"
-        }
+#           image_pull_policy = "Always"
+#         }
 
-        service_account_name = "dotscience-deployer"
-      }
-    }
-  }
-}
+#         service_account_name = "dotscience-deployer"
+#       }
+#     }
+#   }
+# }
 
