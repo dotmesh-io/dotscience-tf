@@ -178,4 +178,3 @@ resource "kubernetes_deployment" "dotscience_deployer" {
     }
   }
 }
-

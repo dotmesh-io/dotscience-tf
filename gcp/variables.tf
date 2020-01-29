@@ -56,3 +56,14 @@ variable "letsencrypt_mode" {
   type        = string
   default     = "off"
 }
+
+variable "grafana_admin_user" {
+  description = "The password for the Grafana admin user, used for Dotscience Hub monitoring"
+  type        = string
+  default     = "admin"
+}
+
+variable "grafana_admin_password" {
+  description = "The password for the Grafana admin user, used for Dotscience Hub monitoring"
+  type        = string
+}

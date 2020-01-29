@@ -1,11 +1,24 @@
+provider "aws" {
+  version = ">= 2.28.1"
+  region  = var.region
+}
+
+provider "random" {
+  version = "~> 2.1"
+}
+
 data "aws_availability_zone" "az" {
   name = "${var.region}a"
 }
 
 data "aws_caller_identity" "current" {}
 
-resource "aws_iam_role_policy" "policy" {
-  name   = var.stack_name
+resource "random_id" "default" {
+ byte_length = 8
+}
+
+resource "aws_iam_role_policy" "ds_policy" {
+  name   = "ds-policy-${random_id.default.hex}"
   role   = aws_iam_role.ds_role.id
   policy = <<POLICY
 {
@@ -31,7 +44,7 @@ POLICY
 }
 
 resource "aws_iam_role" "ds_role" {
-  name               = var.stack_name
+  name               = "ds-role-${random_id.default.hex}"
   path               = "/"
   assume_role_policy = <<POLICY
 {
@@ -50,7 +63,7 @@ POLICY
 }
 
 resource "aws_iam_instance_profile" "ds_instance_profile" {
-  name = var.stack_name
+  name = "ds-instance-profile-${random_id.default.hex}"
   path = "/"
   role = aws_iam_role.ds_role.id
 }
@@ -62,12 +75,12 @@ resource "aws_subnet" "ds_subnet" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = var.stack_name
+    Name = "ds-subnet-${random_id.default.hex}"
   }
 }
 
 resource "aws_security_group" "ds_runner_security_group" {
-  name        = "${var.stack_name}_runner_sg"
+  name        = "ds-runner-sg-${random_id.default.hex}"
   description = "SG for Hub and Runner EC2 Instances"
   vpc_id      = module.vpc.vpc_id
 
@@ -91,15 +104,10 @@ resource "aws_security_group" "ds_runner_security_group" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Application = var.stack_name
-    Name        = var.stack_name
-  }
 }
 
 resource "aws_security_group" "ds_hub_security_group" {
-  name        = "${var.stack_name}_hub_sg"
+  name        = "ds-hub-sg-${random_id.default.hex}"
   description = "SG for Hub and Runner EC2 Instances"
   vpc_id      = module.vpc.vpc_id
 
@@ -145,15 +153,10 @@ resource "aws_security_group" "ds_hub_security_group" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Application = var.stack_name
-    Name        = var.stack_name
-  }
 }
 
 resource "aws_elb" "ds_elb" {
-  name            = var.stack_name
+  name            = "ds-elb-${random_id.default.hex}"
   subnets         = [aws_subnet.ds_subnet.id]
   security_groups = [aws_security_group.ds_hub_security_group.id]
   # instances                   = ["i-0d5cf73e8ff7c0ba9"]
@@ -206,10 +209,6 @@ resource "aws_elb" "ds_elb" {
   depends_on = [
     aws_security_group.ds_hub_security_group
   ]
-
-  tags = {
-    Application = var.stack_name
-  }
 }
 
 resource "aws_ebs_volume" "ds_hub_volume" {
@@ -218,7 +217,7 @@ resource "aws_ebs_volume" "ds_hub_volume" {
   type              = "gp2"
 
   tags = {
-    Name = var.stack_name
+    Name = "ds-hub-volume-${random_id.default.hex}"
   }
 }
 
@@ -232,7 +231,7 @@ resource "aws_route_table" "ds_route_table" {
   }
 
   tags = {
-    Name = var.stack_name
+    Name = "ds-route-table-${random_id.default.hex}"
   }
 }
 
@@ -252,12 +251,12 @@ resource "aws_internet_gateway" "ds_vpc_gateway" {
   vpc_id = module.vpc.vpc_id
 
   tags = {
-    Name = var.stack_name
+    Name = "ds-internet-gateway-${random_id.default.hex}"
   }
 }
 
 resource "aws_launch_configuration" "ds_hub_launch_config" {
-  name_prefix                 = var.stack_name
+  name_prefix                 = "ds-hub"
   image_id                    = var.amis[var.region].Hub
   instance_type               = var.hub_instance_type
   iam_instance_profile        = aws_iam_instance_profile.ds_instance_profile.id
@@ -306,14 +305,8 @@ resource "aws_autoscaling_group" "ds_asg" {
   launch_configuration      = aws_launch_configuration.ds_hub_launch_config.id
   max_size                  = 1
   min_size                  = 1
-  name                      = var.stack_name
+  name                      = "ds-asg-${random_id.default.hex}"
   vpc_zone_identifier       = [aws_subnet.ds_subnet.id]
-
-  tag {
-    key                 = "Application"
-    value               = var.stack_name
-    propagate_at_launch = true
-  }
 
   tag {
     key                 = "Name"

@@ -32,9 +32,6 @@ variable "az_number" {
   }
 }
 
-variable "stack_name" {
-}
-
 variable "key_name" {
   description = "Name of an existing EC2 KeyPair to enable SSH access to the instances"
   type        = string
