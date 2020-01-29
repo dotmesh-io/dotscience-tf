@@ -25,8 +25,8 @@ resource "kubernetes_secret" "grafana_admin" {
   }
 
   data = {
-    admin-user: var.grafana_admin_user
-    admin-password: var.grafana_admin_password
+    admin-user = var.grafana_admin_user
+    admin-password = var.grafana_admin_password
   }
 
   type= "Opaque"
@@ -65,19 +65,8 @@ resource "helm_release" "grafana" {
     name  = "admin.existingSecret"
     value = "grafana"
   }
-
-  set {
-    name  = "admin.userKey"
-    value = "admin-user"
-  }
-
-  set {
-    name  = "admin.passwordKey"
-    value = "admin-password"
-  }
 }
 
-#  Just for debugging
 output "grafana_host" {
   value = kubernetes_service.grafana_lb.load_balancer_ingress[0].ip
 }
