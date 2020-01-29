@@ -31,31 +31,6 @@ resource "google_container_cluster" "dotscience_deployer" {
   }
 }
 
-resource "google_container_node_pool" "primary_preemptible_nodes" {
-  name       = "dotscience-deployer-node-pool"
-  location   = var.region
-  cluster    = google_container_cluster.dotscience_deployer.name
-  node_count = 1
-
-  node_config {
-    preemptible  = true
-    machine_type = "n1-standard-1"
-
-    metadata = {
-      disable-legacy-endpoints = "true"
-    }
-
-    oauth_scopes = [
-      "https://www.googleapis.com/auth/logging.write",
-      "https://www.googleapis.com/auth/monitoring",
-    ]
-  }
-  autoscaling {
-    min_node_count = 1
-    max_node_count = 10
-  }
-}
-
 provider "kubernetes" {
   host = google_container_cluster.dotscience_deployer.endpoint
   token = data.google_client_config.default.access_token
