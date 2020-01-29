@@ -1,11 +1,7 @@
 resource "google_container_cluster" "dotscience_deployer" {
-  name     = "dotscience-deployer"
+  name     = "dotscience-deployer-${random_id.default.hex}"
   location = var.region
 
-  # We can't create a cluster with no node pool defined, but we want to only use
-  # separately managed node pools. So we create the smallest possible default
-  # node pool and immediately delete it.
-  remove_default_node_pool = true
   initial_node_count       = 1
 
   master_auth {
@@ -14,19 +10,6 @@ resource "google_container_cluster" "dotscience_deployer" {
 
     client_certificate_config {
       issue_client_certificate = false
-    }
-  }
-  cluster_autoscaling {
-    enabled = true
-    resource_limits {
-        resource_type = "cpu"
-        minimum = 200
-        maximum = 1600
-    }
-    resource_limits {
-        resource_type = "memory"
-        minimum = 2
-        maximum = 16
     }
   }
 }
