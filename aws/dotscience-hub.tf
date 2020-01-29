@@ -55,19 +55,8 @@ resource "aws_iam_instance_profile" "ds_instance_profile" {
   role = aws_iam_role.ds_role.id
 }
 
-resource "aws_vpc" "ds_vpc" {
-  cidr_block           = var.vpc_network_cidr
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-  instance_tenancy     = "default"
-
-  tags = {
-    Name = var.stack_name
-  }
-}
-
 resource "aws_subnet" "ds_subnet" {
-  vpc_id                  = aws_vpc.ds_vpc.id
+  vpc_id                  = module.vpc.vpc_id
   cidr_block              = var.vpc_network_cidr
   availability_zone       = data.aws_availability_zone.az.name
   map_public_ip_on_launch = true
@@ -80,7 +69,7 @@ resource "aws_subnet" "ds_subnet" {
 resource "aws_security_group" "ds_runner_security_group" {
   name        = "${var.stack_name}_runner_sg"
   description = "SG for Hub and Runner EC2 Instances"
-  vpc_id      = aws_vpc.ds_vpc.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
     from_port   = 22
@@ -105,14 +94,14 @@ resource "aws_security_group" "ds_runner_security_group" {
 
   tags = {
     Application = var.stack_name
-    Name = var.stack_name
+    Name        = var.stack_name
   }
 }
 
 resource "aws_security_group" "ds_hub_security_group" {
   name        = "${var.stack_name}_hub_sg"
   description = "SG for Hub and Runner EC2 Instances"
-  vpc_id      = aws_vpc.ds_vpc.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
     from_port   = 80
@@ -159,7 +148,7 @@ resource "aws_security_group" "ds_hub_security_group" {
 
   tags = {
     Application = var.stack_name
-    Name = var.stack_name
+    Name        = var.stack_name
   }
 }
 
@@ -217,7 +206,7 @@ resource "aws_elb" "ds_elb" {
   depends_on = [
     aws_security_group.ds_hub_security_group
   ]
-  
+
   tags = {
     Application = var.stack_name
   }
@@ -234,8 +223,8 @@ resource "aws_ebs_volume" "ds_hub_volume" {
 }
 
 resource "aws_route_table" "ds_route_table" {
-  depends_on = [aws_vpc.ds_vpc, aws_internet_gateway.ds_vpc_gateway]
-  vpc_id     = aws_vpc.ds_vpc.id
+  depends_on = [module.vpc, aws_internet_gateway.ds_vpc_gateway]
+  vpc_id     = module.vpc.vpc_id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -260,7 +249,7 @@ resource "aws_route_table_association" "ds_rta" {
 }
 
 resource "aws_internet_gateway" "ds_vpc_gateway" {
-  vpc_id = aws_vpc.ds_vpc.id
+  vpc_id = module.vpc.vpc_id
 
   tags = {
     Name = var.stack_name
@@ -278,11 +267,11 @@ resource "aws_launch_configuration" "ds_hub_launch_config" {
   enable_monitoring           = true
   ebs_optimized               = false
   placement_tenancy           = "default"
-  depends_on                  = [aws_security_group.ds_hub_security_group,
-                                aws_ebs_volume.ds_hub_volume, 
-                                aws_elb.ds_elb, aws_kms_key.ds_kms_key, 
-                                aws_security_group.ds_runner_security_group, 
-                                aws_subnet.ds_subnet]
+  depends_on = [aws_security_group.ds_hub_security_group,
+    aws_ebs_volume.ds_hub_volume,
+    aws_elb.ds_elb, aws_kms_key.ds_kms_key,
+    aws_security_group.ds_runner_security_group,
+  aws_subnet.ds_subnet]
 
   # TODO: user_data = "${file("userdata.sh")}"
   user_data = <<-EOF
@@ -298,7 +287,7 @@ resource "aws_launch_configuration" "ds_hub_launch_config" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh "${var.admin_password}" "${var.hub_volume_size}" /dev/nvme1n1 "${aws_elb.ds_elb.dns_name}" "${aws_kms_key.ds_kms_key.id}" "${var.region}" "${var.key_name}" "${aws_security_group.ds_runner_security_group.id}" "${aws_subnet.ds_subnet.id}" "${var.amis[var.region].CPURunner}" "${var.amis[var.region].GPURunner}" "${var.grafana_host}" "${var.grafana_user}" "${var.grafana_password}" 
+              /home/ubuntu/startup.sh "${var.admin_password}" "${var.hub_volume_size}" /dev/nvme1n1 "${aws_elb.ds_elb.dns_name}" "${aws_kms_key.ds_kms_key.id}" "${var.region}" "${var.key_name}" "${aws_security_group.ds_runner_security_group.id}" "${aws_subnet.ds_subnet.id}" "${var.amis[var.region].CPURunner}" "${var.amis[var.region].GPURunner}" "${var.grafana_host}" "${var.grafana_admin_user}" "${var.grafana_admin_password}" 
               EOF
 
   root_block_device {
