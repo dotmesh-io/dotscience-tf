@@ -11,6 +11,10 @@ resource "random_id" "default" {
  byte_length = 8
 }
 
+resource "random_id" "deployer_token" {
+ byte_length = 16
+}
+
 locals {
   // TODO make it easier for a devops team using this tf to change the
   // your.dotscience.net reference, probably by having a var which overrides
@@ -34,7 +38,7 @@ resource "google_compute_instance" "dotscience_hub_vm" {
  metadata_startup_script = <<-EOF
 #!/bin/bash -xe
 echo "Starting Dotscience hub"
-/home/ubuntu/startup.sh --admin-password "${var.admin_password}" --cloud gcp --hub-size "${var.hub_volume_size}" --hub-device /dev/sdb --hub-hostname "${local.hub_hostname}" --use-kms=false --license-key="${var.license_key}" --letsencrypt-mode="${var.letsencrypt_mode}" --gcp-runner-project "${var.project}" --gcp-runner-zone "${local.zone}"
+/home/ubuntu/startup.sh --admin-password "${var.admin_password}" --cloud gcp --hub-size "${var.hub_volume_size}" --hub-device /dev/sdb --hub-hostname "${local.hub_hostname}" --use-kms=false --license-key="${var.license_key}" --letsencrypt-mode="${var.letsencrypt_mode}" --gcp-runner-project "${var.project}" --gcp-runner-zone "${local.zone}" --deployer-token "${random_id.deployer_token.hex}
 EOF
 
  network_interface {
