@@ -2,11 +2,6 @@ variable "region" {
   default = "us-east1"
 }
 
-variable "key_name" {
-  description = "Name of an existing KeyPair to enable SSH access to the instances"
-  type        = string
-}
-
 variable "project" {
   description = "GCP project id"
   type        = string

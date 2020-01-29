@@ -3,6 +3,9 @@ provider "google" {
   region = var.region
 }
 
+data "google_client_config" "default" {
+}
+
 // Terraform plugin for creating random ids
 resource "random_id" "default" {
  byte_length = 8
@@ -80,7 +83,7 @@ resource "google_compute_disk_resource_policy_attachment" "attachment" {
 }
 
 resource "google_compute_resource_policy" "dotscience_hub_disk_backups" {
-  name   = "dotscience-hub-disk-backups"
+  name   = "dotscience-hub-disk-backups-${random_id.default.hex}"
   region = var.region
   snapshot_schedule_policy {
     schedule {
