@@ -31,14 +31,14 @@ resource "google_compute_instance" "dotscience_hub_vm" {
 
  boot_disk {
    initialize_params {
-     image = "dotscience-images/dotscience-hub-1580297182"
+     image = "dotscience-images/dotscience-hub-1580330873"
    }
  }
 
  metadata_startup_script = <<-EOF
 #!/bin/bash -xe
 echo "Starting Dotscience hub"
-/home/ubuntu/startup.sh --admin-password "${var.admin_password}" --cloud gcp --hub-size "${var.hub_volume_size}" --hub-device /dev/sdb --hub-hostname "${local.hub_hostname}" --use-kms=false --license-key="${var.license_key}" --letsencrypt-mode="${var.letsencrypt_mode}" --gcp-runner-project "${var.project}" --gcp-runner-zone "${local.zone}" --deployer-token "${random_id.deployer_token.hex}
+/home/ubuntu/startup.sh --admin-password "${var.admin_password}" --cloud gcp --hub-size "${var.hub_volume_size}" --hub-device /dev/sdb --hub-hostname "${local.hub_hostname}" --use-kms=false --license-key="${var.license_key}" --letsencrypt-mode="${var.letsencrypt_mode}" --gcp-runner-project "${var.project}" --gcp-runner-zone "${local.zone}" --deployer-token "${random_id.deployer_token.hex}"
 EOF
 
  network_interface {
