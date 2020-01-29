@@ -4,15 +4,24 @@
 
 ## 1. deploy the stack
 
-edit variables.tf and set `dotscience_hub_ssh_key` and `dotscience_hub_admin_password`
+Make a copy of `input.tfvars.sample` and add in settings for the parameters below
 
+```
+admin_password   = "SECURE_PASSWORD"
+hub_ingress_cidr = "0.0.0.0/0"
+key_name         = "dotscience-hub-cf"
+ssh_access_cidr  = "0.0.0.0/0"
+stack_name       = "dotscience"
+```   
+
+Initialise Terraform:
 ```
 terraform init
 ```
 
 Deploy the stack:
 ```
-terraform apply
+terraform apply -var-file="testing.tfvars" -auto-approve
 ```
 
 ## 2. connect eks cluster as dotscience deployer

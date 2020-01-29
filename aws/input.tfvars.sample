@@ -1,0 +1,6 @@
+admin_password   = "SECUREPASSWORD"
+hub_ingress_cidr = "0.0.0.0/0"
+key_name         = "dotscience-hub-cf"
+ssh_access_cidr  = "0.0.0.0/0"
+stack_name       = "dotscience"
+

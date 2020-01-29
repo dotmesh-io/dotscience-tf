@@ -1,7 +1,3 @@
-#provider "aws" {
-#  region = var.region
-#}
-
 data "aws_availability_zone" "az" {
   name = "${var.region}a"
 }
