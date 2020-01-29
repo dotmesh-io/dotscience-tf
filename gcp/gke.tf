@@ -16,6 +16,19 @@ resource "google_container_cluster" "dotscience_deployer" {
       issue_client_certificate = false
     }
   }
+  cluster_autoscaling {
+    enabled = true
+    resource_limits {
+        resource_type = "cpu"
+        minimum = 200
+        maximum = 1600
+    }
+    resource_limits {
+        resource_type = "memory"
+        minimum = 2
+        maximum = 16
+    }
+  }
 }
 
 resource "google_container_node_pool" "primary_preemptible_nodes" {
@@ -37,19 +50,10 @@ resource "google_container_node_pool" "primary_preemptible_nodes" {
       "https://www.googleapis.com/auth/monitoring",
     ]
   }
-  /*cluster_autoscaling {
-    enabled = true
-    resource_limits {
-        resource_type = "cpu"
-        minimum = "200"
-        maximum = "1600"
-    }
-    resource_limits {
-        resource_type = "memory"
-        minimum = "2G"
-        maximum = "16G"
-    }
-  }*/
+  autoscaling {
+    min_node_count = 1
+    max_node_count = 10
+  }
 }
 
 provider "kubernetes" {
