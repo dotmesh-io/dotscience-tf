@@ -31,7 +31,7 @@ resource "google_compute_instance" "dotscience_hub_vm" {
 
  boot_disk {
    initialize_params {
-     image = "dotscience-images/dotscience-hub-1580330873"
+     image = "dotscience-images/dotscience-hub-1580339885"
    }
  }
 
