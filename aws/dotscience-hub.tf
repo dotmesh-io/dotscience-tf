@@ -223,7 +223,7 @@ resource "aws_ebs_volume" "ds_hub_volume" {
 }
 
 resource "aws_route_table" "ds_route_table" {
-  depends_on = [aws_vpc.ds_vpc, aws_internet_gateway.ds_vpc_gateway]
+  depends_on = [module.vpc, aws_internet_gateway.ds_vpc_gateway]
   vpc_id     = module.vpc.vpc_id
 
   route {
@@ -287,7 +287,7 @@ resource "aws_launch_configuration" "ds_hub_launch_config" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh "${var.admin_password}" "${var.hub_volume_size}" /dev/nvme1n1 "${aws_elb.ds_elb.dns_name}" "${aws_kms_key.ds_kms_key.id}" "${var.region}" "${var.key_name}" "${aws_security_group.ds_runner_security_group.id}" "${aws_subnet.ds_subnet.id}" "${var.amis[var.region].CPURunner}" "${var.amis[var.region].GPURunner}" "${var.grafana_host}" "${var.grafana_user}" "${var.grafana_password}" 
+              /home/ubuntu/startup.sh "${var.admin_password}" "${var.hub_volume_size}" /dev/nvme1n1 "${aws_elb.ds_elb.dns_name}" "${aws_kms_key.ds_kms_key.id}" "${var.region}" "${var.key_name}" "${aws_security_group.ds_runner_security_group.id}" "${aws_subnet.ds_subnet.id}" "${var.amis[var.region].CPURunner}" "${var.amis[var.region].GPURunner}" "${var.grafana_host}" "${var.grafana_admin_user}" "${var.grafana_admin_password}" 
               EOF
 
   root_block_device {
