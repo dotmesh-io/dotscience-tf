@@ -13,14 +13,14 @@ resource "kubernetes_service" "grafana_lb" {
   spec {
     selector = {
       app = "grafana"
-      
+
     }
     session_affinity = "ClientIP"
     port {
-      name = "app"
+      name        = "app"
       port        = 80
       target_port = 3000
-      protocol = "TCP"
+      protocol    = "TCP"
     }
 
     type = "LoadBalancer"

@@ -1,7 +1,7 @@
 variable "dotscience_version" {
   description = "Version information for this build that released this Terraform configuration"
-  type = string
-  default = "DotScience devel 2020-01-21 16-26-19 aa3a1651b07b471bffd103fb5e23f4b04d6a8ba3"
+  type        = string
+  default     = "DotScience devel 2020-01-21 16-26-19 aa3a1651b07b471bffd103fb5e23f4b04d6a8ba3"
 }
 
 variable "region" {
@@ -103,7 +103,7 @@ variable "grafana_host" {
 variable "grafana_admin_user" {
   description = "The password for the Grafana admin user, used for Dotscience Hub monitoring"
   type        = string
-  default = "admin"
+  default     = "admin"
 }
 
 variable "grafana_admin_password" {
@@ -124,8 +124,8 @@ variable "map_accounts" {
   type        = list(string)
 
   default = [
-#    "777777777777",
-#    "888888888888",
+    #    "777777777777",
+    #    "888888888888",
   ]
 }
 
@@ -138,11 +138,11 @@ variable "map_roles" {
   }))
 
   default = [
-#    {
-#      rolearn  = "arn:aws:iam::66666666666:role/role1"
-#      username = "role1"
-#      groups   = ["system:masters"]
-#    },
+    #    {
+    #      rolearn  = "arn:aws:iam::66666666666:role/role1"
+    #      username = "role1"
+    #      groups   = ["system:masters"]
+    #    },
   ]
 }
 
@@ -155,15 +155,15 @@ variable "map_users" {
   }))
 
   default = [
-#    {
-#      userarn  = "arn:aws:iam::66666666666:user/user1"
-#      username = "user1"
-#      groups   = ["system:masters"]
-#    },
-#    {
-#      userarn  = "arn:aws:iam::66666666666:user/user2"
-#      username = "user2"
-#      groups   = ["system:masters"]
-#    },
+    #    {
+    #      userarn  = "arn:aws:iam::66666666666:user/user1"
+    #      username = "user1"
+    #      groups   = ["system:masters"]
+    #    },
+    #    {
+    #      userarn  = "arn:aws:iam::66666666666:user/user2"
+    #      username = "user2"
+    #      groups   = ["system:masters"]
+    #    },
   ]
 }

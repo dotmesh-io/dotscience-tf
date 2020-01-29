@@ -94,7 +94,7 @@ resource "aws_security_group" "ds_runner_security_group" {
 
   tags = {
     Application = var.stack_name
-    Name = var.stack_name
+    Name        = var.stack_name
   }
 }
 
@@ -148,7 +148,7 @@ resource "aws_security_group" "ds_hub_security_group" {
 
   tags = {
     Application = var.stack_name
-    Name = var.stack_name
+    Name        = var.stack_name
   }
 }
 
@@ -206,7 +206,7 @@ resource "aws_elb" "ds_elb" {
   depends_on = [
     aws_security_group.ds_hub_security_group
   ]
-  
+
   tags = {
     Application = var.stack_name
   }
@@ -267,11 +267,11 @@ resource "aws_launch_configuration" "ds_hub_launch_config" {
   enable_monitoring           = true
   ebs_optimized               = false
   placement_tenancy           = "default"
-  depends_on                  = [aws_security_group.ds_hub_security_group,
-                                aws_ebs_volume.ds_hub_volume, 
-                                aws_elb.ds_elb, aws_kms_key.ds_kms_key, 
-                                aws_security_group.ds_runner_security_group, 
-                                aws_subnet.ds_subnet]
+  depends_on = [aws_security_group.ds_hub_security_group,
+    aws_ebs_volume.ds_hub_volume,
+    aws_elb.ds_elb, aws_kms_key.ds_kms_key,
+    aws_security_group.ds_runner_security_group,
+  aws_subnet.ds_subnet]
 
   # TODO: user_data = "${file("userdata.sh")}"
   user_data = <<-EOF
