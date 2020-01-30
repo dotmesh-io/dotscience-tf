@@ -73,3 +73,13 @@ variable "grafana_admin_password" {
   description = "The password for the Grafana admin user, used for Dotscience Hub monitoring"
   type        = string
 }
+
+variable "webrelay_key" {
+  description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
+  type = string
+}
+
+variable "webrelay_secret" {
+  description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
+  type = string
+}
