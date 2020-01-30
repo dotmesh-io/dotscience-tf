@@ -1,11 +1,11 @@
 resource "google_container_cluster" "dotscience_deployer" {
   name     = "dotscience-deployer-${random_id.default.hex}"
-  location = var.region
+  location = local.zone
 
   // XXX TODO switch to using a node pool so we don't have to destroy the whole cluster if we change it
   // https://www.terraform.io/docs/providers/google/r/container_cluster.html#node_pool
 
-  initial_node_count       = 1
+  initial_node_count       = 3
 
   node_config {
     machine_type = "n1-standard-2"
