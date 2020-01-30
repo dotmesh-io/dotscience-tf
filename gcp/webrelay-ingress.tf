@@ -77,6 +77,7 @@ resource "kubernetes_deployment" "webrelay" {
         termination_grace_period_seconds = 10
         dns_policy                       = "ClusterFirst"
         service_account_name             = "webrelay"
+        automount_service_account_token  = true
       }
     }
   }
@@ -133,6 +134,7 @@ resource "kubernetes_cluster_role" "webrelay" {
 resource "kubernetes_secret" "webrelay_credentials" {
   metadata {
     name = "webrelay-credentials"
+    namespace = "webrelay-ingress"
   }
 
   data = {
