@@ -87,5 +87,5 @@ variable "webrelay_secret" {
 variable "runner_machine_type" {
   description = "Default managed runner machine type e.g. n1-standard-2"
   default = "n1-standard-2"
-  type = "string"
+  type = string
 }
