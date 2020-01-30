@@ -83,3 +83,9 @@ variable "webrelay_secret" {
   description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
   type = string
 }
+
+variable "runner_machine_type" {
+  description = "Default managed runner machine type e.g. n1-standard-2"
+  default = "n1-standard-2"
+  type = "string"
+}
