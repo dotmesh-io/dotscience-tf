@@ -14,7 +14,7 @@ data "aws_availability_zone" "az" {
 data "aws_caller_identity" "current" {}
 
 resource "random_id" "default" {
- byte_length = 8
+  byte_length = 8
 }
 
 resource "aws_iam_role_policy" "ds_policy" {
@@ -66,17 +66,6 @@ resource "aws_iam_instance_profile" "ds_instance_profile" {
   name = "ds-instance-profile-${random_id.default.hex}"
   path = "/"
   role = aws_iam_role.ds_role.id
-}
-
-resource "aws_subnet" "ds_subnet" {
-  vpc_id                  = module.vpc.vpc_id
-  cidr_block              = var.vpc_network_cidr
-  availability_zone       = data.aws_availability_zone.az.name
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "ds-subnet-${random_id.default.hex}"
-  }
 }
 
 resource "aws_security_group" "ds_runner_security_group" {
@@ -157,7 +146,7 @@ resource "aws_security_group" "ds_hub_security_group" {
 
 resource "aws_elb" "ds_elb" {
   name            = "ds-elb-${random_id.default.hex}"
-  subnets         = [aws_subnet.ds_subnet.id]
+  subnets         = module.vpc.public_subnets
   security_groups = [aws_security_group.ds_hub_security_group.id]
   # instances                   = ["i-0d5cf73e8ff7c0ba9"]
   cross_zone_load_balancing   = false
@@ -221,40 +210,6 @@ resource "aws_ebs_volume" "ds_hub_volume" {
   }
 }
 
-resource "aws_route_table" "ds_route_table" {
-  depends_on = [module.vpc, aws_internet_gateway.ds_vpc_gateway]
-  vpc_id     = module.vpc.vpc_id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.ds_vpc_gateway.id
-  }
-
-  tags = {
-    Name = "ds-route-table-${random_id.default.hex}"
-  }
-}
-
-resource "aws_route" "ds_route" {
-  route_table_id         = aws_route_table.ds_route_table.id
-  destination_cidr_block = "0.0.0.0/0"
-  depends_on             = [aws_route_table.ds_route_table]
-  gateway_id             = aws_internet_gateway.ds_vpc_gateway.id
-}
-
-resource "aws_route_table_association" "ds_rta" {
-  route_table_id = aws_route_table.ds_route_table.id
-  subnet_id      = aws_subnet.ds_subnet.id
-}
-
-resource "aws_internet_gateway" "ds_vpc_gateway" {
-  vpc_id = module.vpc.vpc_id
-
-  tags = {
-    Name = "ds-internet-gateway-${random_id.default.hex}"
-  }
-}
-
 resource "aws_launch_configuration" "ds_hub_launch_config" {
   name_prefix                 = "ds-hub"
   image_id                    = var.amis[var.region].Hub
@@ -269,9 +224,7 @@ resource "aws_launch_configuration" "ds_hub_launch_config" {
   depends_on = [aws_security_group.ds_hub_security_group,
     aws_ebs_volume.ds_hub_volume,
     aws_elb.ds_elb, aws_kms_key.ds_kms_key,
-    aws_security_group.ds_runner_security_group,
-  aws_subnet.ds_subnet]
-
+    aws_security_group.ds_runner_security_group]
   # TODO: user_data = "${file("userdata.sh")}"
   user_data = <<-EOF
               #! /bin/bash
@@ -286,7 +239,7 @@ resource "aws_launch_configuration" "ds_hub_launch_config" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh "${var.admin_password}" "${var.hub_volume_size}" /dev/nvme1n1 "${aws_elb.ds_elb.dns_name}" "${aws_kms_key.ds_kms_key.id}" "${var.region}" "${var.key_name}" "${aws_security_group.ds_runner_security_group.id}" "${aws_subnet.ds_subnet.id}" "${var.amis[var.region].CPURunner}" "${var.amis[var.region].GPURunner}" "${var.grafana_host}" "${var.grafana_admin_user}" "${var.grafana_admin_password}" 
+              /home/ubuntu/startup.sh "${var.admin_password}" "${var.hub_volume_size}" /dev/nvme1n1 "${aws_elb.ds_elb.dns_name}" "${aws_kms_key.ds_kms_key.id}" "${var.region}" "${var.key_name}" "${aws_security_group.ds_runner_security_group.id}" "${module.vpc.public_subnets[0]}" "${var.amis[var.region].CPURunner}" "${var.amis[var.region].GPURunner}" "${var.grafana_host}" "${var.grafana_admin_user}" "${var.grafana_admin_password}" 
               EOF
 
   root_block_device {
@@ -306,11 +259,11 @@ resource "aws_autoscaling_group" "ds_asg" {
   max_size                  = 1
   min_size                  = 1
   name                      = "ds-asg-${random_id.default.hex}"
-  vpc_zone_identifier       = [aws_subnet.ds_subnet.id]
+  vpc_zone_identifier       = module.vpc.public_subnets
 
   tag {
     key                 = "Name"
-    value               = "DotscienceHub"
+    value               = var.project
     propagate_at_launch = true
   }
 }
