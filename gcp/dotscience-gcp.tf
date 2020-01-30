@@ -20,7 +20,7 @@ locals {
   // your.dotscience.net reference, probably by having a var which overrides
   // this builtin hostname
   hub_hostname = join("", ["hub-", replace(google_compute_address.hub_ipv4_address.address, ".", "-"), ".your.dotscience.net"])
-  zone         = "${var.region}-b"
+  zone         = var.zone
 }
 
 // A single Google Cloud Engine instance
