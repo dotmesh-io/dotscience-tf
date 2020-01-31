@@ -5,13 +5,6 @@
 # for why we name the role binding the same as the service account... to avoid
 # destroy failing due to destroying things in the wrong order and failing
 
-terraform {
-  required_providers {
-    // https://github.com/magda-io/magda-config/issues/7
-    helm = "0.10.2"
-  }
-}
-
 provider "helm" {
   service_account = kubernetes_cluster_role_binding.tiller.metadata.0.name
   namespace       = kubernetes_service_account.tiller.metadata.0.namespace
