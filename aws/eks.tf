@@ -62,7 +62,7 @@ resource "aws_security_group" "all_worker_mgmt" {
 module "eks" {
   source       = "terraform-aws-modules/eks/aws"
   cluster_name = local.cluster_name
-  subnets      = module.vpc.private_subnets
+  subnets      = module.vpc.public_subnets
 
   tags = {
     Environment = var.project

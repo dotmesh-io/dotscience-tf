@@ -5,9 +5,7 @@ resource "kubernetes_service" "grafana_lb" {
   spec {
     selector = {
       app = "grafana"
-
     }
-    session_affinity = "ClientIP"
     port {
       name        = "app"
       port        = 80
@@ -72,5 +70,5 @@ resource "helm_release" "grafana" {
 }
 
 output "grafana_host" {
-  value = kubernetes_service.grafana_lb.load_balancer_ingress[0].ip
+  value = "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}"
 }
