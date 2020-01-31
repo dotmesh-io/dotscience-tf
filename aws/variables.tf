@@ -1,7 +1,7 @@
 variable "dotscience_version" {
   description = "Version information for this build that released this Terraform configuration"
   type        = string
-  default     = "DotScience devel 2020-01-21 16-26-19 aa3a1651b07b471bffd103fb5e23f4b04d6a8ba3"
+  default     = "DotScience devel"
 }
 
 variable "region" {
@@ -119,6 +119,17 @@ variable "eks_cluster_worker_instance_type" {
 
 variable "eks_cluster_worker_count" {
   default = 2
+}
+
+variable "amis" {
+  type = map
+  default = {
+    "us-east-1" : {
+      "Hub" : "ami-0438340d48f1ecf2b",
+      "CPURunner" : "ami-059b4ecdb5d31f499",
+      "GPURunner" : "ami-0e8c502966ca4cc57"
+    }
+  }
 }
 
 variable "map_accounts" {

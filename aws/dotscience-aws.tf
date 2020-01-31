@@ -247,7 +247,6 @@ resource "aws_launch_configuration" "ds_hub_launch_config" {
     volume_size           = 128
     delete_on_termination = true
   }
-
 }
 
 resource "aws_autoscaling_group" "ds_asg" {
