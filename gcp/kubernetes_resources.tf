@@ -71,7 +71,22 @@ resource "helm_release" "grafana" {
   }
 }
 
-output "grafana_host" {
-  value = kubernetes_service.grafana_lb.load_balancer_ingress[0].ip
+locals {
+  grafana_host = kubernetes_service.grafana_lb.load_balancer_ingress[0].ip
 }
 
+output "grafana_host" {
+  value = local.grafana_host
+}
+
+provider "grafana" {
+  url  = "http://${local.grafana_host}/"
+  auth = "${var.grafana_admin_user}:${var.grafana_admin_password}"
+}
+
+resource "grafana_data_source" "prometheus" {
+  type          = "prometheus"
+  name          = "prometheus"
+  url           = "http://prometheus-server/"
+  is_default    = true
+}
