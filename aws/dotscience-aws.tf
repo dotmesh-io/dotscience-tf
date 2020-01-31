@@ -243,7 +243,7 @@ resource "aws_instance" "ds_hub" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh "${var.admin_password}" "${var.hub_volume_size}" /dev/nvme1n1 "${aws_elb.ds_elb.dns_name}" "${aws_kms_key.ds_kms_key.id}" "${var.region}" "${var.key_name}" "${aws_security_group.ds_runner_security_group.id}" "${module.vpc.public_subnets[0]}" "${var.amis[var.region].CPURunner}" "${var.amis[var.region].GPURunner}" "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" "${var.grafana_admin_user}" "${var.grafana_admin_password}" 
+              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${aws_elb.ds_elb.dns_name}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${module.vpc.public_subnets[0]}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-host "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" --grafana-user "${var.grafana_admin_user}" --grafana-password "${var.grafana_admin_password}" 
               EOF
 
   root_block_device {
@@ -251,6 +251,10 @@ resource "aws_instance" "ds_hub" {
     volume_size           = 128
     delete_on_termination = true
   }
+
+  tags = {
+    Name = "ds-hub-${var.project}-${random_id.default.hex}"
+  }  
 }
 
 resource "aws_kms_key" "ds_kms_key" {
