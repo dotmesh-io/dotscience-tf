@@ -144,11 +144,15 @@ resource "aws_security_group" "ds_hub_security_group" {
   }
 }
 
+resource "aws_elb_attachment" "ds_elb_instance_attach" {
+  elb      = "${aws_elb.ds_elb.id}"
+  instance = "${aws_instance.ds_hub.id}"
+}
+
 resource "aws_elb" "ds_elb" {
   name            = "ds-elb-${random_id.default.hex}"
   subnets         = module.vpc.public_subnets
   security_groups = [aws_security_group.ds_hub_security_group.id]
-  # instances                   = ["i-0d5cf73e8ff7c0ba9"]
   cross_zone_load_balancing   = false
   idle_timeout                = 60
   connection_draining         = false
@@ -210,20 +214,20 @@ resource "aws_ebs_volume" "ds_hub_volume" {
   }
 }
 
-resource "aws_launch_configuration" "ds_hub_launch_config" {
-  name_prefix                 = "ds-hub"
-  image_id                    = var.amis[var.region].Hub
+resource "aws_instance" "ds_hub" {
+  ami                    = var.amis[var.region].Hub
   instance_type               = var.hub_instance_type
   iam_instance_profile        = aws_iam_instance_profile.ds_instance_profile.id
   key_name                    = var.key_name
-  security_groups             = [aws_security_group.ds_hub_security_group.id]
+  subnet_id                   = module.vpc.public_subnets[0]
+
+  vpc_security_group_ids      = [aws_security_group.ds_hub_security_group.id]
   associate_public_ip_address = true
-  enable_monitoring           = true
   ebs_optimized               = false
-  placement_tenancy           = "default"
+
   depends_on = [aws_security_group.ds_hub_security_group,
     aws_ebs_volume.ds_hub_volume,
-    aws_elb.ds_elb, aws_kms_key.ds_kms_key,
+    aws_kms_key.ds_kms_key,
     aws_security_group.ds_runner_security_group]
   # TODO: user_data = "${file("userdata.sh")}"
   user_data = <<-EOF
@@ -247,29 +251,6 @@ resource "aws_launch_configuration" "ds_hub_launch_config" {
     volume_size           = 128
     delete_on_termination = true
   }
-}
-
-resource "aws_autoscaling_group" "ds_asg" {
-  desired_capacity          = 1
-  health_check_type         = "ELB"
-  health_check_grace_period = 300
-  min_elb_capacity          = 1
-  launch_configuration      = aws_launch_configuration.ds_hub_launch_config.id
-  max_size                  = 1
-  min_size                  = 1
-  name                      = "ds-asg-${random_id.default.hex}"
-  vpc_zone_identifier       = module.vpc.public_subnets
-
-  tag {
-    key                 = "Name"
-    value               = var.project
-    propagate_at_launch = true
-  }
-}
-
-resource "aws_autoscaling_attachment" "ds_elb_asg" {
-  autoscaling_group_name = aws_autoscaling_group.ds_asg.id
-  elb                    = aws_elb.ds_elb.id
 }
 
 resource "aws_kms_key" "ds_kms_key" {

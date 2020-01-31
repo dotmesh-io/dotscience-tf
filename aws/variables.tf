@@ -132,6 +132,11 @@ variable "amis" {
   }
 }
 
+variable "license_key" {
+  description = "Dotscience License Key"
+  type        = string
+}
+
 variable "map_accounts" {
   description = "Additional AWS account numbers to add to the aws-auth configmap."
   type        = list(string)
