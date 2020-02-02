@@ -17,6 +17,10 @@ resource "random_id" "default" {
   byte_length = 8
 }
 
+resource "random_id" "deployer_token" {
+ byte_length = 16
+}
+
 resource "aws_iam_role_policy" "ds_policy" {
   name   = "ds-policy-${random_id.default.hex}"
   role   = aws_iam_role.ds_role.id
@@ -145,8 +149,8 @@ resource "aws_security_group" "ds_hub_security_group" {
 }
 
 resource "aws_elb_attachment" "ds_elb_instance_attach" {
-  elb      = "${aws_elb.ds_elb.id}"
-  instance = "${aws_instance.ds_hub.id}"
+  elb      = aws_elb.ds_elb.id
+  instance = aws_instance.ds_hub.id
 }
 
 resource "aws_elb" "ds_elb" {
@@ -243,9 +247,9 @@ resource "aws_instance" "ds_hub" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${aws_elb.ds_elb.dns_name}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${module.vpc.public_subnets[0]}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-host "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" --grafana-user "${var.grafana_admin_user}" --grafana-password "${var.grafana_admin_password}" 
+              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${aws_elb.ds_elb.dns_name}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${module.vpc.public_subnets[0]}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-host "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" --grafana-user "${var.grafana_admin_user}" --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode} --deployer-token "${random_id.deployer_token.hex}""
               EOF
-
+              
   root_block_device {
     volume_type           = "gp2"
     volume_size           = 128
