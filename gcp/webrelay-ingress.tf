@@ -45,6 +45,11 @@ resource "kubernetes_deployment" "webrelay" {
           args    = ["server", "--incluster"]
 
           env {
+            name = "RELAY_NAME"
+            value = random_id.default.hex
+          }
+
+          env {
             name = "RELAY_KEY"
 
             value_from {
