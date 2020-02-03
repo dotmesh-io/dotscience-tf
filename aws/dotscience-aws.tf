@@ -18,7 +18,7 @@ resource "random_id" "default" {
 }
 
 resource "random_id" "deployer_token" {
- byte_length = 16
+  byte_length = 16
 }
 
 resource "aws_iam_role_policy" "ds_policy" {
@@ -152,7 +152,7 @@ locals {
   // TODO make it easier for a devops team using this tf to change the
   // your.dotscience.net reference, probably by having a var which overrides
   // this builtin hostname
-  hub_hostname = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), "." , var.dotscience_domain])
+  hub_hostname = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
 }
 
 resource "aws_eip_association" "eip_assoc" {
@@ -175,11 +175,11 @@ resource "aws_ebs_volume" "ds_hub_volume" {
 }
 
 resource "aws_instance" "ds_hub" {
-  ami                    = var.amis[var.region].Hub
-  instance_type               = var.hub_instance_type
-  iam_instance_profile        = aws_iam_instance_profile.ds_instance_profile.id
-  key_name                    = var.key_name
-  subnet_id                   = module.vpc.public_subnets[0]
+  ami                  = var.amis[var.region].Hub
+  instance_type        = var.hub_instance_type
+  iam_instance_profile = aws_iam_instance_profile.ds_instance_profile.id
+  key_name             = var.key_name
+  subnet_id            = module.vpc.public_subnets[0]
 
   vpc_security_group_ids      = [aws_security_group.ds_hub_security_group.id]
   associate_public_ip_address = true
@@ -188,7 +188,7 @@ resource "aws_instance" "ds_hub" {
   depends_on = [aws_security_group.ds_hub_security_group,
     aws_ebs_volume.ds_hub_volume,
     aws_kms_key.ds_kms_key,
-    aws_security_group.ds_runner_security_group]
+  aws_security_group.ds_runner_security_group]
   # TODO: user_data = "${file("userdata.sh")}"
   user_data = <<-EOF
               #! /bin/bash
@@ -213,7 +213,7 @@ resource "aws_instance" "ds_hub" {
 
   tags = {
     Name = "ds-hub-${var.project}-${random_id.default.hex}"
-  }  
+  }
 }
 
 resource "aws_kms_key" "ds_kms_key" {

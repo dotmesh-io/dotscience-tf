@@ -172,7 +172,7 @@ resource "kubernetes_deployment" "dotscience_deployer" {
           image_pull_policy = "Always"
         }
 
-        service_account_name = "dotscience-deployer"
+        service_account_name            = "dotscience-deployer"
         automount_service_account_token = true
       }
     }
