@@ -173,3 +173,13 @@ variable "dotscience_domain" {
   type        = string
   default     = "your.dotscience.net"
 }
+
+variable "webrelay_key" {
+  description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
+  type = string
+}
+
+variable "webrelay_secret" {
+  description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
+  type = string
+}
