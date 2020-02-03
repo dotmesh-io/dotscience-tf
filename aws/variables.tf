@@ -1,7 +1,7 @@
-variable "dotscience_version" {
+variable "dotscience_aws_version" {
   description = "Version information for this build that released this Terraform configuration"
   type        = string
-  default     = "DotScience devel 2020-01-21 16-26-19 aa3a1651b07b471bffd103fb5e23f4b04d6a8ba3"
+  default     = "DotScience devel"
 }
 
 variable "region" {
@@ -121,6 +121,19 @@ variable "eks_cluster_worker_count" {
   default = 2
 }
 
+variable "amis" {
+  type = map
+}
+
+variable "letsencrypt_mode" {
+  type = string
+}
+
+variable "license_key" {
+  description = "Dotscience License Key"
+  type        = string
+}
+
 variable "map_accounts" {
   description = "Additional AWS account numbers to add to the aws-auth configmap."
   type        = list(string)
@@ -140,11 +153,6 @@ variable "map_roles" {
   }))
 
   default = [
-    #    {
-    #      rolearn  = "arn:aws:iam::66666666666:role/role1"
-    #      username = "role1"
-    #      groups   = ["system:masters"]
-    #    },
   ]
 }
 
@@ -157,15 +165,21 @@ variable "map_users" {
   }))
 
   default = [
-    #    {
-    #      userarn  = "arn:aws:iam::66666666666:user/user1"
-    #      username = "user1"
-    #      groups   = ["system:masters"]
-    #    },
-    #    {
-    #      userarn  = "arn:aws:iam::66666666666:user/user2"
-    #      username = "user2"
-    #      groups   = ["system:masters"]
-    #    },
   ]
+}
+
+variable "dotscience_domain" {
+  description = "Domain name that you control, in which to deploy dotscience to, eg. dotscience.example-corp.com"
+  type        = string
+  default     = "your.dotscience.net"
+}
+
+variable "webrelay_key" {
+  description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
+  type = string
+}
+
+variable "webrelay_secret" {
+  description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
+  type = string
 }

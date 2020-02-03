@@ -89,3 +89,9 @@ variable "runner_machine_type" {
   default = "n1-standard-2"
   type = string
 }
+
+variable "dotscience_domain" {
+  description = "Domain name that you control, in which to deploy dotscience to, eg. dotscience.example-corp.com"
+  type        = string
+  default     = "your.dotscience.net"
+}

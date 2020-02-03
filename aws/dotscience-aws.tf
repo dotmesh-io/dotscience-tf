@@ -17,6 +17,10 @@ resource "random_id" "default" {
   byte_length = 8
 }
 
+resource "random_id" "deployer_token" {
+  byte_length = 16
+}
+
 resource "aws_iam_role_policy" "ds_policy" {
   name   = "ds-policy-${random_id.default.hex}"
   role   = aws_iam_role.ds_role.id
@@ -144,60 +148,18 @@ resource "aws_security_group" "ds_hub_security_group" {
   }
 }
 
-resource "aws_elb" "ds_elb" {
-  name            = "ds-elb-${random_id.default.hex}"
-  subnets         = module.vpc.public_subnets
-  security_groups = [aws_security_group.ds_hub_security_group.id]
-  # instances                   = ["i-0d5cf73e8ff7c0ba9"]
-  cross_zone_load_balancing   = false
-  idle_timeout                = 60
-  connection_draining         = false
-  connection_draining_timeout = 300
-  internal                    = false
+locals {
+  hub_hostname = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  hub_subnet = module.vpc.public_subnets[0]
+}
 
-  listener {
-    instance_port      = 8800
-    instance_protocol  = "tcp"
-    lb_port            = 8800
-    lb_protocol        = "tcp"
-    ssl_certificate_id = ""
-  }
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.ds_hub.id
+  allocation_id = aws_eip.ds_eip.id
+}
 
-  listener {
-    instance_port      = 443
-    instance_protocol  = "tcp"
-    lb_port            = 443
-    lb_protocol        = "tcp"
-    ssl_certificate_id = ""
-  }
-
-  listener {
-    instance_port      = 32607
-    instance_protocol  = "tcp"
-    lb_port            = 32607
-    lb_protocol        = "tcp"
-    ssl_certificate_id = ""
-  }
-
-  listener {
-    instance_port      = 80
-    instance_protocol  = "tcp"
-    lb_port            = 80
-    lb_protocol        = "tcp"
-    ssl_certificate_id = ""
-  }
-
-  health_check {
-    healthy_threshold   = 3
-    unhealthy_threshold = 5
-    interval            = 30
-    target              = "HTTP:80/"
-    timeout             = 5
-  }
-
-  depends_on = [
-    aws_security_group.ds_hub_security_group
-  ]
+resource "aws_eip" "ds_eip" {
+  vpc = true
 }
 
 resource "aws_ebs_volume" "ds_hub_volume" {
@@ -210,21 +172,21 @@ resource "aws_ebs_volume" "ds_hub_volume" {
   }
 }
 
-resource "aws_launch_configuration" "ds_hub_launch_config" {
-  name_prefix                 = "ds-hub"
-  image_id                    = var.amis[var.region].Hub
-  instance_type               = var.hub_instance_type
-  iam_instance_profile        = aws_iam_instance_profile.ds_instance_profile.id
-  key_name                    = var.key_name
-  security_groups             = [aws_security_group.ds_hub_security_group.id]
+resource "aws_instance" "ds_hub" {
+  ami                  = var.amis[var.region].Hub
+  instance_type        = var.hub_instance_type
+  iam_instance_profile = aws_iam_instance_profile.ds_instance_profile.id
+  key_name             = var.key_name
+  subnet_id            = local.hub_subnet
+
+  vpc_security_group_ids      = [aws_security_group.ds_hub_security_group.id]
   associate_public_ip_address = true
-  enable_monitoring           = true
   ebs_optimized               = false
-  placement_tenancy           = "default"
+
   depends_on = [aws_security_group.ds_hub_security_group,
     aws_ebs_volume.ds_hub_volume,
-    aws_elb.ds_elb, aws_kms_key.ds_kms_key,
-    aws_security_group.ds_runner_security_group]
+    aws_kms_key.ds_kms_key,
+  aws_security_group.ds_runner_security_group]
   # TODO: user_data = "${file("userdata.sh")}"
   user_data = <<-EOF
               #! /bin/bash
@@ -239,38 +201,17 @@ resource "aws_launch_configuration" "ds_hub_launch_config" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh "${var.admin_password}" "${var.hub_volume_size}" /dev/nvme1n1 "${aws_elb.ds_elb.dns_name}" "${aws_kms_key.ds_kms_key.id}" "${var.region}" "${var.key_name}" "${aws_security_group.ds_runner_security_group.id}" "${module.vpc.public_subnets[0]}" "${var.amis[var.region].CPURunner}" "${var.amis[var.region].GPURunner}" "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" "${var.grafana_admin_user}" "${var.grafana_admin_password}" 
+              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-user "${var.grafana_admin_user}" --grafana-host "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
               EOF
-
   root_block_device {
     volume_type           = "gp2"
     volume_size           = 128
     delete_on_termination = true
   }
 
-}
-
-resource "aws_autoscaling_group" "ds_asg" {
-  desired_capacity          = 1
-  health_check_type         = "ELB"
-  health_check_grace_period = 300
-  min_elb_capacity          = 1
-  launch_configuration      = aws_launch_configuration.ds_hub_launch_config.id
-  max_size                  = 1
-  min_size                  = 1
-  name                      = "ds-asg-${random_id.default.hex}"
-  vpc_zone_identifier       = module.vpc.public_subnets
-
-  tag {
-    key                 = "Name"
-    value               = var.project
-    propagate_at_launch = true
+  tags = {
+    Name = "ds-hub-${var.project}-${random_id.default.hex}"
   }
-}
-
-resource "aws_autoscaling_attachment" "ds_elb_asg" {
-  autoscaling_group_name = aws_autoscaling_group.ds_asg.id
-  elb                    = aws_elb.ds_elb.id
 }
 
 resource "aws_kms_key" "ds_kms_key" {
@@ -296,6 +237,10 @@ resource "aws_kms_key" "ds_kms_key" {
 POLICY
 }
 
+output "DotscienceHub_IP" {
+  value = "http://${aws_eip.ds_eip.public_ip}"
+}
+
 output "DotscienceHub_URL" {
-  value = "http://${aws_elb.ds_elb.dns_name}"
+  value = "https://${local.hub_hostname}"
 }
