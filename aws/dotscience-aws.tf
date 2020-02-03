@@ -148,64 +148,20 @@ resource "aws_security_group" "ds_hub_security_group" {
   }
 }
 
-resource "aws_elb_attachment" "ds_elb_instance_attach" {
-  elb      = aws_elb.ds_elb.id
-  instance = aws_instance.ds_hub.id
+locals {
+  // TODO make it easier for a devops team using this tf to change the
+  // your.dotscience.net reference, probably by having a var which overrides
+  // this builtin hostname
+  hub_hostname = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), "." , var.dotscience_domain])
 }
 
-resource "aws_elb" "ds_elb" {
-  name            = "ds-elb-${random_id.default.hex}"
-  subnets         = module.vpc.public_subnets
-  security_groups = [aws_security_group.ds_hub_security_group.id]
-  cross_zone_load_balancing   = false
-  idle_timeout                = 60
-  connection_draining         = false
-  connection_draining_timeout = 300
-  internal                    = false
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.ds_hub.id
+  allocation_id = aws_eip.ds_eip.id
+}
 
-  listener {
-    instance_port      = 8800
-    instance_protocol  = "tcp"
-    lb_port            = 8800
-    lb_protocol        = "tcp"
-    ssl_certificate_id = ""
-  }
-
-  listener {
-    instance_port      = 443
-    instance_protocol  = "tcp"
-    lb_port            = 443
-    lb_protocol        = "tcp"
-    ssl_certificate_id = ""
-  }
-
-  listener {
-    instance_port      = 32607
-    instance_protocol  = "tcp"
-    lb_port            = 32607
-    lb_protocol        = "tcp"
-    ssl_certificate_id = ""
-  }
-
-  listener {
-    instance_port      = 80
-    instance_protocol  = "tcp"
-    lb_port            = 80
-    lb_protocol        = "tcp"
-    ssl_certificate_id = ""
-  }
-
-  health_check {
-    healthy_threshold   = 3
-    unhealthy_threshold = 5
-    interval            = 30
-    target              = "HTTP:80/"
-    timeout             = 5
-  }
-
-  depends_on = [
-    aws_security_group.ds_hub_security_group
-  ]
+resource "aws_eip" "ds_eip" {
+  vpc = true
 }
 
 resource "aws_ebs_volume" "ds_hub_volume" {
@@ -247,9 +203,8 @@ resource "aws_instance" "ds_hub" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${aws_elb.ds_elb.dns_name}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${module.vpc.public_subnets[0]}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-host "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" --grafana-user "${var.grafana_admin_user}" --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode} --deployer-token "${random_id.deployer_token.hex}""
+              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${module.vpc.public_subnets[0]}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-user "${var.grafana_admin_user}" --grafana-host "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
               EOF
-              
   root_block_device {
     volume_type           = "gp2"
     volume_size           = 128
@@ -284,6 +239,10 @@ resource "aws_kms_key" "ds_kms_key" {
 POLICY
 }
 
+output "DotscienceHub_IP" {
+  value = "http://${aws_eip.ds_eip.public_ip}"
+}
+
 output "DotscienceHub_URL" {
-  value = "http://${aws_elb.ds_elb.dns_name}"
+  value = "https://${local.hub_hostname}"
 }

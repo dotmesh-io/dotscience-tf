@@ -134,7 +134,7 @@ resource "kubernetes_deployment" "dotscience_deployer" {
 
           env {
             name  = "GATEWAY_ADDRESS"
-            value = "http://${aws_elb.ds_elb.dns_name}:8800"
+            value = "${local.hub_hostname}:8800"
           }
 
           env {

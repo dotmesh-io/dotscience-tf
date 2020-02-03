@@ -153,11 +153,6 @@ variable "map_roles" {
   }))
 
   default = [
-    #    {
-    #      rolearn  = "arn:aws:iam::66666666666:role/role1"
-    #      username = "role1"
-    #      groups   = ["system:masters"]
-    #    },
   ]
 }
 
@@ -170,15 +165,11 @@ variable "map_users" {
   }))
 
   default = [
-    #    {
-    #      userarn  = "arn:aws:iam::66666666666:user/user1"
-    #      username = "user1"
-    #      groups   = ["system:masters"]
-    #    },
-    #    {
-    #      userarn  = "arn:aws:iam::66666666666:user/user2"
-    #      username = "user2"
-    #      groups   = ["system:masters"]
-    #    },
   ]
+}
+
+variable "dotscience_domain" {
+ description = "Domain name that you control, in which to deploy dotscience to, eg. dotscience.example-corp.com" 
+  type = string
+  default = "your.dotscience.net"
 }
