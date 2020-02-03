@@ -12,6 +12,9 @@ resource "kubernetes_service_account" "webrelay" {
 }
 
 resource "kubernetes_deployment" "webrelay" {
+  depends_on = [
+    kubernetes_secret.webrelay_credentials
+  ]
   metadata {
     name      = "webrelay"
     namespace = "webrelay-ingress"
@@ -43,6 +46,11 @@ resource "kubernetes_deployment" "webrelay" {
           image   = "docker.io/webrelay/ingress:latest"
           command = ["reingress"]
           args    = ["server", "--incluster"]
+
+          env {
+            name = "RELAY_NAME"
+            value = random_id.default.hex
+          }
 
           env {
             name = "RELAY_KEY"
