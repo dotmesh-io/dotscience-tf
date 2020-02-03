@@ -149,10 +149,8 @@ resource "aws_security_group" "ds_hub_security_group" {
 }
 
 locals {
-  // TODO make it easier for a devops team using this tf to change the
-  // your.dotscience.net reference, probably by having a var which overrides
-  // this builtin hostname
   hub_hostname = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  hub_subnet = module.vpc.public_subnets[0]
 }
 
 resource "aws_eip_association" "eip_assoc" {
@@ -179,7 +177,7 @@ resource "aws_instance" "ds_hub" {
   instance_type        = var.hub_instance_type
   iam_instance_profile = aws_iam_instance_profile.ds_instance_profile.id
   key_name             = var.key_name
-  subnet_id            = module.vpc.public_subnets[0]
+  subnet_id            = local.hub_subnet
 
   vpc_security_group_ids      = [aws_security_group.ds_hub_security_group.id]
   associate_public_ip_address = true
@@ -203,7 +201,7 @@ resource "aws_instance" "ds_hub" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${module.vpc.public_subnets[0]}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-user "${var.grafana_admin_user}" --grafana-host "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
+              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-user "${var.grafana_admin_user}" --grafana-host "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
               EOF
   root_block_device {
     volume_type           = "gp2"
