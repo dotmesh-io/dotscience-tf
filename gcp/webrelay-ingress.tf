@@ -73,12 +73,6 @@ resource "kubernetes_deployment" "webrelay" {
               }
             }
           }
-
-          env {
-            name  = "RELAY_NAME"
-            value = "hosted-dotscience"
-          }
-
           image_pull_policy = "Always"
         }
 
