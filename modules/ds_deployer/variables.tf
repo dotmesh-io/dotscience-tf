@@ -14,3 +14,13 @@ variable "webrelay_secret" {
   type = string
   default = "4rAW5vq0D7uN"
 }
+
+variable "create_deployer" {
+  description = "Toggle for conditionally creating the deployer"
+  type = string
+}
+
+variable "deployer_token" {
+  description = "Unqiue token that is used for the deployer"
+  type = string
+}

@@ -1,15 +1,9 @@
-locals {
-    count = var.create_vpc ? 1 : 0
-}
-
-resource "ds_deployer" "this" {
-  count = locals.count
-  
-  hub_hostname = var.hub_hostname
+resource "random_id" "default" {
+ byte_length = 8
 }
 
 resource "kubernetes_namespace" "dotscience_deployer" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
 
   metadata {
     name = "dotscience-deployer"
@@ -17,7 +11,7 @@ resource "kubernetes_namespace" "dotscience_deployer" {
 }
 
 resource "kubernetes_service_account" "dotscience_deployer" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
 
   metadata {
     name      = "dotscience-deployer"
@@ -30,7 +24,7 @@ resource "kubernetes_service_account" "dotscience_deployer" {
 }
 
 resource "kubernetes_cluster_role" "dotscience_deployer" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
 
   metadata {
     name = "dotscience-deployer"
@@ -50,7 +44,7 @@ resource "kubernetes_cluster_role" "dotscience_deployer" {
 }
 
 resource "kubernetes_cluster_role_binding" "dotscience_deployer" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
 
   metadata {
     name = "dotscience-deployer"
@@ -70,7 +64,7 @@ resource "kubernetes_cluster_role_binding" "dotscience_deployer" {
 }
 
 resource "kubernetes_service" "dotscience_deployer" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
   metadata {
     name      = "dotscience-deployer"
     namespace = "dotscience-deployer"
@@ -98,7 +92,7 @@ resource "kubernetes_service" "dotscience_deployer" {
 }
 
 resource "kubernetes_deployment" "dotscience_deployer" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
 
   metadata {
     name      = "dotscience-deployer"
@@ -155,12 +149,12 @@ resource "kubernetes_deployment" "dotscience_deployer" {
 
           env {
             name  = "GATEWAY_ADDRESS"
-            value = "${local.hub_hostname}:8800"
+            value = "${var.hub_hostname}:8800"
           }
 
           env {
             name  = "TOKEN"
-            value = random_id.deployer_token.hex
+            value = var.deployer_token
           }
 
           env {
@@ -201,7 +195,7 @@ resource "kubernetes_deployment" "dotscience_deployer" {
 }
 
 resource "kubernetes_namespace" "webrelay_ingress" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
 
   metadata {
     name = "webrelay-ingress"
@@ -209,6 +203,8 @@ resource "kubernetes_namespace" "webrelay_ingress" {
 }
 
 resource "kubernetes_service_account" "webrelay" {
+  count = var.create_deployer ? 1 : 0
+
   metadata {
     name      = "webrelay"
     namespace = "webrelay-ingress"
@@ -216,7 +212,7 @@ resource "kubernetes_service_account" "webrelay" {
 }
 
 resource "kubernetes_deployment" "webrelay" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
 
   depends_on = [
     kubernetes_secret.webrelay_credentials
@@ -292,7 +288,7 @@ resource "kubernetes_deployment" "webrelay" {
 }
 
 resource "kubernetes_cluster_role_binding" "webrelay" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
 
   metadata {
     name = "webrelay"
@@ -312,7 +308,7 @@ resource "kubernetes_cluster_role_binding" "webrelay" {
 }
 
 resource "kubernetes_cluster_role" "webrelay" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
 
   metadata {
     name = "webrelay"
@@ -344,7 +340,7 @@ resource "kubernetes_cluster_role" "webrelay" {
 }
 
 resource "kubernetes_secret" "webrelay_credentials" {
-  count = locals.count
+  count = var.create_deployer ? 1 : 0
 
   metadata {
     name = "webrelay-credentials"
