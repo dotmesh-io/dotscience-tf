@@ -185,3 +185,9 @@ variable "webrelay_secret" {
   type = string
   default = "4rAW5vq0D7uN"
 }
+
+variable "create_eks" {
+  description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
+  type = string
+  default = "true"
+}

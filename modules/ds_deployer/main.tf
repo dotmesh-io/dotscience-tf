@@ -1,3 +1,7 @@
+locals {
+    hub_hostname = var.hub_hostname
+}
+
 resource "kubernetes_namespace" "dotscience_deployer" {
   metadata {
     name = "dotscience-deployer"

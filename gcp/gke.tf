@@ -1,3 +1,8 @@
+module "kubernetes_resources" {
+  source = "../kubernetes_resources"
+  create_count = 0
+}
+
 resource "google_container_cluster" "dotscience_deployer" {
   name     = "dotscience-deployer-${random_id.default.hex}"
   location = local.zone
@@ -27,3 +32,4 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(google_container_cluster.dotscience_deployer.master_auth.0.cluster_ca_certificate)
   load_config_file = false
 }
+
