@@ -1,14 +1,24 @@
 locals {
-    hub_hostname = var.hub_hostname
+    count = var.create_vpc ? 1 : 0
+}
+
+resource "ds_deployer" "this" {
+  count = locals.count
+  
+  hub_hostname = var.hub_hostname
 }
 
 resource "kubernetes_namespace" "dotscience_deployer" {
+  count = locals.count
+
   metadata {
     name = "dotscience-deployer"
   }
 }
 
 resource "kubernetes_service_account" "dotscience_deployer" {
+  count = locals.count
+
   metadata {
     name      = "dotscience-deployer"
     namespace = "dotscience-deployer"
@@ -20,6 +30,8 @@ resource "kubernetes_service_account" "dotscience_deployer" {
 }
 
 resource "kubernetes_cluster_role" "dotscience_deployer" {
+  count = locals.count
+
   metadata {
     name = "dotscience-deployer"
   }
@@ -38,6 +50,8 @@ resource "kubernetes_cluster_role" "dotscience_deployer" {
 }
 
 resource "kubernetes_cluster_role_binding" "dotscience_deployer" {
+  count = locals.count
+
   metadata {
     name = "dotscience-deployer"
   }
@@ -56,6 +70,7 @@ resource "kubernetes_cluster_role_binding" "dotscience_deployer" {
 }
 
 resource "kubernetes_service" "dotscience_deployer" {
+  count = locals.count
   metadata {
     name      = "dotscience-deployer"
     namespace = "dotscience-deployer"
@@ -83,6 +98,8 @@ resource "kubernetes_service" "dotscience_deployer" {
 }
 
 resource "kubernetes_deployment" "dotscience_deployer" {
+  count = locals.count
+
   metadata {
     name      = "dotscience-deployer"
     namespace = "dotscience-deployer"
@@ -181,4 +198,163 @@ resource "kubernetes_deployment" "dotscience_deployer" {
       }
     }
   }
+}
+
+resource "kubernetes_namespace" "webrelay_ingress" {
+  count = locals.count
+
+  metadata {
+    name = "webrelay-ingress"
+  }
+}
+
+resource "kubernetes_service_account" "webrelay" {
+  metadata {
+    name      = "webrelay"
+    namespace = "webrelay-ingress"
+  }
+}
+
+resource "kubernetes_deployment" "webrelay" {
+  count = locals.count
+
+  depends_on = [
+    kubernetes_secret.webrelay_credentials
+  ]
+  metadata {
+    name      = "webrelay"
+    namespace = "webrelay-ingress"
+
+    labels = {
+      app = "webrelay"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "webrelay"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "webrelay"
+        }
+      }
+
+      spec {
+        container {
+          name    = "webrelay"
+          image   = "docker.io/webrelay/ingress:latest"
+          command = ["reingress"]
+          args    = ["server", "--incluster"]
+
+          env {
+            name = "RELAY_NAME"
+            value = random_id.default.hex
+          }
+
+          env {
+            name = "RELAY_KEY"
+
+            value_from {
+              secret_key_ref {
+                name = "webrelay-credentials"
+                key  = "key"
+              }
+            }
+          }
+
+          env {
+            name = "RELAY_SECRET"
+
+            value_from {
+              secret_key_ref {
+                name = "webrelay-credentials"
+                key  = "secret"
+              }
+            }
+          }
+          image_pull_policy = "Always"
+        }
+
+        termination_grace_period_seconds = 10
+        dns_policy                       = "ClusterFirst"
+        service_account_name             = "webrelay"
+        automount_service_account_token  = true
+      }
+    }
+  }
+}
+
+resource "kubernetes_cluster_role_binding" "webrelay" {
+  count = locals.count
+
+  metadata {
+    name = "webrelay"
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = "webrelay"
+    namespace = "webrelay-ingress"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = "webrelay"
+  }
+}
+
+resource "kubernetes_cluster_role" "webrelay" {
+  count = locals.count
+
+  metadata {
+    name = "webrelay"
+  }
+
+  rule {
+    verbs      = ["list", "watch"]
+    api_groups = [""]
+    resources  = ["configmaps", "endpoints", "nodes", "pods"]
+  }
+
+  rule {
+    verbs      = ["get"]
+    api_groups = [""]
+    resources  = ["nodes"]
+  }
+
+  rule {
+    verbs      = ["get", "list", "watch"]
+    api_groups = [""]
+    resources  = ["services"]
+  }
+
+  rule {
+    verbs      = ["get", "list", "watch"]
+    api_groups = ["extensions"]
+    resources  = ["ingresses"]
+  }
+}
+
+resource "kubernetes_secret" "webrelay_credentials" {
+  count = locals.count
+
+  metadata {
+    name = "webrelay-credentials"
+    namespace = "webrelay-ingress"
+  }
+
+  data = {
+    key = var.webrelay_key
+    secret = var.webrelay_secret
+  }
+
+  type = "Opaque"
 }

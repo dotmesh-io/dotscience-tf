@@ -14,13 +14,17 @@ provider "template" {
   version = "~> 2.1"
 }
 
-data "aws_eks_cluster" "cluster" {
+locals {
   count = var.create_eks ? 1 : 0
+}
+
+data "aws_eks_cluster" "cluster" {
+  count = local.count
   name = module.eks.cluster_id
 }
 
 data "aws_eks_cluster_auth" "cluster" {  
-  count = var.create_eks ? 1 : 0
+  count = local.count
   name = module.eks.cluster_id
 }
 

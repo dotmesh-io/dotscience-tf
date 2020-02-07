@@ -74,18 +74,6 @@ variable "grafana_admin_password" {
   type        = string
 }
 
-variable "webrelay_key" {
-  description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type = string
-  default = "b06e261f-074e-47b5-bfbe-4d6d94ccd6f4"
-}
-
-variable "webrelay_secret" {
-  description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type = string
-  default = "4rAW5vq0D7uN"
-}
-
 variable "runner_machine_type" {
   description = "Default managed runner machine type e.g. n1-standard-2"
   default = "n1-standard-2"
@@ -96,4 +84,10 @@ variable "dotscience_domain" {
   description = "Domain name that you control, in which to deploy dotscience to, eg. dotscience.example-corp.com"
   type        = string
   default     = "your.dotscience.net"
+}
+
+variable "create_gke" {
+  description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
+  type = string
+  default = "true"
 }
