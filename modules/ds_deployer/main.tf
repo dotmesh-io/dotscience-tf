@@ -1,5 +1,5 @@
 resource "random_id" "default" {
- byte_length = 8
+  byte_length = 8
 }
 
 
@@ -196,7 +196,7 @@ resource "kubernetes_deployment" "dotscience_deployer" {
           image_pull_policy = "Always"
         }
 
-        service_account_name = "dotscience-deployer"
+        service_account_name            = "dotscience-deployer"
         automount_service_account_token = true
       }
     }
@@ -264,7 +264,7 @@ resource "kubernetes_deployment" "webrelay" {
           args    = ["server", "--incluster"]
 
           env {
-            name = "RELAY_NAME"
+            name  = "RELAY_NAME"
             value = random_id.default.hex
           }
 
@@ -362,12 +362,12 @@ resource "kubernetes_secret" "webrelay_credentials" {
   count = var.create_deployer ? 1 : 0
 
   metadata {
-    name = "webrelay-credentials"
+    name      = "webrelay-credentials"
     namespace = "webrelay-ingress"
   }
 
   data = {
-    key = var.webrelay_key
+    key    = var.webrelay_key
     secret = var.webrelay_secret
   }
 

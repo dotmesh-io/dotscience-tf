@@ -6,8 +6,21 @@ provider "kubernetes" {
   version                = "~> 1.9"
 }
 
+provider "helm" {
+  kubernetes {
+    host                   = var.kubernetes_host
+    cluster_ca_certificate = var.cluster_ca_certificate
+    token                  = var.kubernetes_token
+  }
+}
+
+data "helm_repository" "stable" {
+  name = "stable"
+  url  = "https://kubernetes-charts.storage.googleapis.com"
+}
+
 resource "kubernetes_service" "grafana_lb" {
-    count = var.create_monitoring ? 1 : 0
+  count = var.create_monitoring ? 1 : 0
 
   metadata {
     name = "external-grafana"
@@ -30,25 +43,26 @@ resource "kubernetes_service" "grafana_lb" {
 }
 
 resource "kubernetes_secret" "grafana_admin" {
-    count = var.create_monitoring ? 1 : 0
+  count = var.create_monitoring ? 1 : 0
 
   metadata {
     name = "grafana"
   }
 
   data = {
-    admin-user = var.grafana_admin_user
+    admin-user     = var.grafana_admin_user
     admin-password = var.grafana_admin_password
   }
 
-  type= "Opaque"
+  type = "Opaque"
 }
 
 resource "helm_release" "prometheus" {
-    count = var.create_monitoring ? 1 : 0
+  count = var.create_monitoring ? 1 : 0
 
-  name  = "prometheus"
-  chart = "stable/prometheus"
+  name       = "prometheus"
+  repository = data.helm_repository.stable.metadata[0].name
+  chart      = "stable/prometheus"
 
   set {
     name  = "server.global.scrape_interval"
@@ -67,9 +81,11 @@ resource "helm_release" "prometheus" {
 }
 
 resource "helm_release" "grafana" {
-    count = var.create_monitoring ? 1 : 0
+  count = var.create_monitoring ? 1 : 0
 
-  name  = "grafana"
+  name       = "grafana"
+  repository = data.helm_repository.stable.metadata[0].name
+
   chart = "stable/grafana"
 
   depends_on = [
@@ -97,9 +113,10 @@ provider "grafana" {
 }
 
 resource "grafana_data_source" "prometheus" {
-  count = var.create_monitoring ? 1 : 0
-  type          = "prometheus"
-  name          = "prometheus"
-  url           = "http://prometheus-server/"
-  is_default    = true
+  count      = var.create_monitoring ? 1 : 0
+  type       = "prometheus"
+  name       = "prometheus"
+  url        = "http://prometheus-server/"
+  is_default = true
+  depends_on = [kubernetes_service.grafana_lb]
 }

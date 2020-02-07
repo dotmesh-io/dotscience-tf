@@ -1,6 +1,6 @@
 variable "create_monitoring" {
   description = "Toggle for conditionally creating the monitoring services"
-  type = string
+  type        = string
 }
 
 variable "grafana_admin_user" {
@@ -16,15 +16,15 @@ variable "grafana_admin_password" {
 
 variable "kubernetes_host" {
   description = "Unqiue token that is used for the deployer"
-  type = string
+  type        = string
 }
 
 variable "cluster_ca_certificate" {
   description = "Certificate to auth into the kubernetes cluster"
-  type = string
+  type        = string
 }
 
 variable "kubernetes_token" {
   description = "Token to auth into the kubernetes cluster"
-  type = string
+  type        = string
 }
