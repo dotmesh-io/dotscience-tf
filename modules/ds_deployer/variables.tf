@@ -24,3 +24,18 @@ variable "deployer_token" {
   description = "Unqiue token that is used for the deployer"
   type = string
 }
+
+variable "kubernetes_host" {
+  description = "Unqiue token that is used for the deployer"
+  type = string
+}
+
+variable "cluster_ca_certificate" {
+  description = "Certificate to auth into the kubernetes cluster"
+  type = string
+}
+
+variable "kubernetes_token" {
+  description = "Token to auth into the kubernetes cluster"
+  type = string
+}

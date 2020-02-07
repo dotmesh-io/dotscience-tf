@@ -1,4 +1,14 @@
+provider "kubernetes" {
+  host                   = var.kubernetes_host
+  cluster_ca_certificate = var.cluster_ca_certificate
+  token                  = var.kubernetes_token
+  load_config_file       = false
+  version                = "~> 1.9"
+}
+
 resource "kubernetes_service" "grafana_lb" {
+    count = var.create_monitoring ? 1 : 0
+
   metadata {
     name = "external-grafana"
   }
@@ -20,6 +30,8 @@ resource "kubernetes_service" "grafana_lb" {
 }
 
 resource "kubernetes_secret" "grafana_admin" {
+    count = var.create_monitoring ? 1 : 0
+
   metadata {
     name = "grafana"
   }
@@ -33,6 +45,8 @@ resource "kubernetes_secret" "grafana_admin" {
 }
 
 resource "helm_release" "prometheus" {
+    count = var.create_monitoring ? 1 : 0
+
   name  = "prometheus"
   chart = "stable/prometheus"
 
@@ -53,6 +67,8 @@ resource "helm_release" "prometheus" {
 }
 
 resource "helm_release" "grafana" {
+    count = var.create_monitoring ? 1 : 0
+
   name  = "grafana"
   chart = "stable/grafana"
 
@@ -72,7 +88,7 @@ resource "helm_release" "grafana" {
 }
 
 locals {
-  grafana_host = kubernetes_service.grafana_lb.load_balancer_ingress[0].ip
+  grafana_host = element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].ip, list("")), 0)
 }
 
 provider "grafana" {
@@ -81,6 +97,7 @@ provider "grafana" {
 }
 
 resource "grafana_data_source" "prometheus" {
+  count = var.create_monitoring ? 1 : 0
   type          = "prometheus"
   name          = "prometheus"
   url           = "http://prometheus-server/"

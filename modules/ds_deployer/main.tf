@@ -2,6 +2,15 @@ resource "random_id" "default" {
  byte_length = 8
 }
 
+
+provider "kubernetes" {
+  host                   = var.kubernetes_host
+  cluster_ca_certificate = var.cluster_ca_certificate
+  token                  = var.kubernetes_token
+  load_config_file       = false
+  version                = "~> 1.9"
+}
+
 resource "kubernetes_namespace" "dotscience_deployer" {
   count = var.create_deployer ? 1 : 0
 
@@ -209,13 +218,18 @@ resource "kubernetes_service_account" "webrelay" {
     name      = "webrelay"
     namespace = "webrelay-ingress"
   }
+
+  depends_on = [
+    kubernetes_namespace.webrelay_ingress
+  ]
 }
 
 resource "kubernetes_deployment" "webrelay" {
   count = var.create_deployer ? 1 : 0
 
   depends_on = [
-    kubernetes_secret.webrelay_credentials
+    kubernetes_secret.webrelay_credentials,
+    kubernetes_namespace.webrelay_ingress
   ]
   metadata {
     name      = "webrelay"
@@ -285,6 +299,7 @@ resource "kubernetes_deployment" "webrelay" {
       }
     }
   }
+
 }
 
 resource "kubernetes_cluster_role_binding" "webrelay" {
@@ -305,6 +320,10 @@ resource "kubernetes_cluster_role_binding" "webrelay" {
     kind      = "ClusterRole"
     name      = "webrelay"
   }
+
+  depends_on = [
+    kubernetes_namespace.webrelay_ingress
+  ]
 }
 
 resource "kubernetes_cluster_role" "webrelay" {
@@ -353,4 +372,8 @@ resource "kubernetes_secret" "webrelay_credentials" {
   }
 
   type = "Opaque"
+
+  depends_on = [
+    kubernetes_namespace.webrelay_ingress
+  ]
 }

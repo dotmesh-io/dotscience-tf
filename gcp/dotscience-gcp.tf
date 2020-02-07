@@ -26,6 +26,9 @@ module "ds_deployer" {
   create_deployer = var.create_deployer && var.create_gke ? 1 : 0
   hub_hostname = local.hub_hostname
   deployer_token = local.deployer_token
+  kubernetes_host = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
+  cluster_ca_certificate = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
+  kubernetes_token = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
 }
 
 module "ds_monitoring" {
@@ -33,6 +36,9 @@ module "ds_monitoring" {
   create_monitoring = var.create_monitoring && var.create_gke && var.create_deployer  ? 1 : 0
   grafana_admin_user = var.grafana_admin_user
   grafana_admin_password = var.grafana_admin_password
+  kubernetes_host = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
+  cluster_ca_certificate = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
+  kubernetes_token = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
 }
 
 resource "google_container_cluster" "dotscience_deployer" {
@@ -57,14 +63,6 @@ resource "google_container_cluster" "dotscience_deployer" {
       issue_client_certificate = false
     }
   }
-}
-
-provider "kubernetes" {
-  host                   = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
-  cluster_ca_certificate = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
-  token                  = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
-  load_config_file       = false
-  version                = "~> 1.9"
 }
 
 // A single Google Cloud Engine instance
