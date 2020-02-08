@@ -121,7 +121,7 @@ resource "google_compute_firewall" "dotscience_firewall" {
 
   allow {
     protocol = "tcp"
-    ports    = ["80", "443", "8800", "22"]
+    ports    = ["80", "443", "8800", "9800", "22"]
   }
 
   //source_tags = ["web"]
