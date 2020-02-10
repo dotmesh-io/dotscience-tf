@@ -176,18 +176,30 @@ variable "dotscience_domain" {
 
 variable "webrelay_key" {
   description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type = string
-  default = "b06e261f-074e-47b5-bfbe-4d6d94ccd6f4"
+  type        = string
+  default     = "b06e261f-074e-47b5-bfbe-4d6d94ccd6f4"
 }
 
 variable "webrelay_secret" {
   description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type = string
-  default = "4rAW5vq0D7uN"
+  type        = string
+  default     = "4rAW5vq0D7uN"
 }
 
 variable "create_eks" {
   description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type = string
-  default = "true"
+  type        = string
+  default     = "true"
+}
+
+variable "create_deployer" {
+  description = "Toggle to create a default dotscience deployer on the above mentioned GKE cluster, requires create_gke to be set to true"
+  type        = string
+  default     = "true"
+}
+
+variable "create_monitoring" {
+  description = "Toggle to create monitoring services for model deployed on the default deployer, requires create_gke and create_deployer to be set to true"
+  type        = string
+  default     = "true"
 }

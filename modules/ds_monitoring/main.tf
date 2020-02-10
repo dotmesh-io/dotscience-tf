@@ -104,7 +104,7 @@ resource "helm_release" "grafana" {
 }
 
 locals {
-  grafana_host = element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].ip, list("")), 0)
+  grafana_host = element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].hostname, list("")), 0)
 }
 
 provider "grafana" {

@@ -1,24 +1,144 @@
+terraform {
+  required_version = ">= 0.12.0"
+}
+
 provider "aws" {
   version = ">= 2.28.1"
   region  = var.region
 }
 
-provider "random" {
-  version = "~> 2.1"
-}
-
-data "aws_availability_zone" "az" {
-  name = "${var.region}a"
-}
-
-data "aws_caller_identity" "current" {}
-
+// Terraform plugin for creating random ids
 resource "random_id" "default" {
   byte_length = 8
 }
 
 resource "random_id" "deployer_token" {
   byte_length = 16
+}
+
+data "aws_availability_zones" "available" {
+}
+
+data "aws_availability_zone" "regional_az" {
+  name = "${var.region}a"
+}
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  hub_hostname   = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  hub_subnet     = module.vpc.public_subnets[0]
+  deployer_token = random_id.deployer_token.hex
+  cluster_name   = "eks-${random_id.default.hex}"
+}
+
+data "aws_eks_cluster" "cluster" {
+  count = var.create_eks ? 1 : 0
+  name  = module.eks.cluster_id
+}
+
+data "aws_eks_cluster_auth" "cluster" {
+  count = var.create_eks ? 1 : 0
+  name  = module.eks.cluster_id
+}
+
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "2.6.0"
+
+  name            = local.cluster_name
+  cidr            = var.vpc_network_cidr
+  azs             = data.aws_availability_zones.available.names
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  public_subnets  = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
+
+  enable_nat_gateway     = true
+  single_nat_gateway     = true
+  one_nat_gateway_per_az = false
+
+  enable_dns_hostnames = true
+
+  tags = {
+    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
+  }
+
+  public_subnet_tags = {
+    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"                      = "1"
+  }
+
+  private_subnet_tags = {
+    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb"             = "1"
+  }
+}
+
+module "ds_deployer" {
+  source                 = "../modules/ds_deployer"
+  create_deployer        = var.create_deployer && var.create_eks ? 1 : 0
+  hub_hostname           = local.hub_hostname
+  deployer_token         = local.deployer_token
+  kubernetes_host        = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
+  cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
+  kubernetes_token       = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
+}
+
+module "ds_monitoring" {
+  source                 = "../modules/ds_monitoring"
+  create_monitoring      = var.create_monitoring && var.create_deployer && var.create_eks ? 1 : 0
+  grafana_admin_user     = var.grafana_admin_user
+  grafana_admin_password = var.grafana_admin_password
+  kubernetes_host        = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
+  cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
+  kubernetes_token       = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
+}
+
+resource "aws_security_group" "all_worker_mgmt" {
+  name_prefix = "all_worker_management"
+  vpc_id      = module.vpc.vpc_id
+  count       = var.create_eks ? 1 : 0
+
+  ingress {
+    from_port = 22
+    to_port   = 22
+    protocol  = "tcp"
+
+    cidr_blocks = [
+      "10.0.0.0/8",
+      "172.16.0.0/12",
+      "192.168.0.0/16",
+    ]
+  }
+}
+
+module "eks" {
+  source       = "terraform-aws-modules/eks/aws"
+  cluster_name = local.cluster_name
+  subnets      = module.vpc.private_subnets
+  create_eks   = var.create_eks ? true : false
+
+  tags = {
+    Environment = local.cluster_name
+    GithubRepo  = "terraform-aws-eks"
+    GithubOrg   = "terraform-aws-modules"
+  }
+
+  vpc_id = module.vpc.vpc_id
+
+  worker_groups = [
+    {
+      name                          = "worker-group-1"
+      instance_type                 = var.eks_cluster_worker_instance_type
+      additional_userdata           = "echo foo bar"
+      asg_desired_capacity          = var.eks_cluster_worker_count
+      additional_security_group_ids = []
+    },
+  ]
+
+  worker_additional_security_group_ids = [concat(aws_security_group.all_worker_mgmt[*].id, list(""))]
+  map_roles                            = var.map_roles
+  map_users                            = var.map_users
+  map_accounts                         = var.map_accounts
 }
 
 resource "aws_iam_role_policy" "ds_policy" {
@@ -148,11 +268,6 @@ resource "aws_security_group" "ds_hub_security_group" {
   }
 }
 
-locals {
-  hub_hostname = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
-  hub_subnet = module.vpc.public_subnets[0]
-}
-
 resource "aws_eip_association" "eip_assoc" {
   instance_id   = aws_instance.ds_hub.id
   allocation_id = aws_eip.ds_eip.id
@@ -163,7 +278,7 @@ resource "aws_eip" "ds_eip" {
 }
 
 resource "aws_ebs_volume" "ds_hub_volume" {
-  availability_zone = data.aws_availability_zone.az.name
+  availability_zone = data.aws_availability_zone.regional_az.name
   size              = var.hub_volume_size
   type              = "gp2"
 
@@ -201,7 +316,7 @@ resource "aws_instance" "ds_hub" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-user "${var.grafana_admin_user}" --grafana-host "http://${kubernetes_service.grafana_lb.load_balancer_ingress[0].hostname}" --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
+              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${module.ds_monitoring.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
               EOF
   root_block_device {
     volume_type           = "gp2"
@@ -210,7 +325,7 @@ resource "aws_instance" "ds_hub" {
   }
 
   tags = {
-    Name = "ds-hub-${var.project}-${random_id.default.hex}"
+    Name = "ds-hub-${local.cluster_name}-${random_id.default.hex}"
   }
 }
 
@@ -235,12 +350,4 @@ resource "aws_kms_key" "ds_kms_key" {
   } ]
 }
 POLICY
-}
-
-output "DotscienceHub_IP" {
-  value = "http://${aws_eip.ds_eip.public_ip}"
-}
-
-output "DotscienceHub_URL" {
-  value = "https://${local.hub_hostname}"
 }
