@@ -8,11 +8,6 @@ variable "region" {
   default = "us-east-1"
 }
 
-variable "project" {
-  description = "Name of project, used for identifying resources"
-  type        = string
-}
-
 variable "region_number" {
   # Arbitrary mapping of region name to number to use in
   # a VPC's CIDR prefix.
