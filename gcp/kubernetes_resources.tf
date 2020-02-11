@@ -35,6 +35,7 @@ resource "kubernetes_secret" "grafana_admin" {
 resource "helm_release" "prometheus" {
   name  = "prometheus"
   chart = "stable/prometheus"
+  timeout = 300
 
   set {
     name  = "server.global.scrape_interval"
@@ -55,6 +56,7 @@ resource "helm_release" "prometheus" {
 resource "helm_release" "grafana" {
   name  = "grafana"
   chart = "stable/grafana"
+  timeout = 300
 
   depends_on = [
     kubernetes_secret.grafana_admin
@@ -85,6 +87,10 @@ provider "grafana" {
 }
 
 resource "grafana_data_source" "prometheus" {
+  depends_on = [
+    helm_release.grafana
+  ]
+
   type          = "prometheus"
   name          = "prometheus"
   url           = "http://prometheus-server/"
