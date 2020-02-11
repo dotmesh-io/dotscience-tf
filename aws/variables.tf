@@ -1,16 +1,10 @@
 variable "dotscience_aws_version" {
   description = "Version information for this build that released this Terraform configuration"
   type        = string
-  default     = "DotScience devel"
 }
 
 variable "region" {
   default = "us-east-1"
-}
-
-variable "project" {
-  description = "Name of project, used for identifying resources"
-  type        = string
 }
 
 variable "region_number" {
@@ -22,18 +16,6 @@ variable "region_number" {
     us-west-2      = 3
     eu-central-1   = 4
     ap-northeast-1 = 5
-  }
-}
-
-variable "az_number" {
-  # Assign a number to each AZ letter used in our configuration
-  default = {
-    a = 1
-    b = 2
-    c = 3
-    d = 4
-    e = 5
-    f = 6
   }
 }
 
@@ -64,12 +46,6 @@ variable "hub_ingress_cidr" {
   type        = string
 }
 
-variable "hub_ec2_instance_name" {
-  description = "Hub EC2 Instance Name"
-  default     = "DotscienceHub"
-  type        = string
-}
-
 variable "hub_volume_size" {
   description = "The storage volume size in GB used for the Dotscience Hub. Must be larger than 128."
   type        = number
@@ -77,21 +53,6 @@ variable "hub_volume_size" {
 }
 variable "hub_instance_type" {
   description = "Hub EC2 instance type"
-  type        = string
-  default     = "m5.2xlarge"
-}
-variable "runner_ec2_instance_name" {
-  description = "Runner EC2 Instance Name"
-  default     = "DotscienceRunner"
-  type        = string
-}
-variable "runner_volume_size" {
-  description = "The storage volume size in GB used for the Dotscience Runner. Must be larger than 128."
-  type        = number
-  default     = 1024
-}
-variable "runner_instance_type" {
-  description = "Runner EC2 instance type"
   type        = string
   default     = "m5.2xlarge"
 }
@@ -176,12 +137,30 @@ variable "dotscience_domain" {
 
 variable "webrelay_key" {
   description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type = string
-  default = "b06e261f-074e-47b5-bfbe-4d6d94ccd6f4"
+  type        = string
+  default     = "b06e261f-074e-47b5-bfbe-4d6d94ccd6f4"
 }
 
 variable "webrelay_secret" {
   description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type = string
-  default = "4rAW5vq0D7uN"
+  type        = string
+  default     = "4rAW5vq0D7uN"
+}
+
+variable "create_eks" {
+  description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
+  type        = string
+  default     = "true"
+}
+
+variable "create_deployer" {
+  description = "Toggle to create a default dotscience deployer on the above mentioned GKE cluster, requires create_gke to be set to true"
+  type        = string
+  default     = "true"
+}
+
+variable "create_monitoring" {
+  description = "Toggle to create monitoring services for model deployed on the default deployer, requires create_gke and create_deployer to be set to true"
+  type        = string
+  default     = "true"
 }
