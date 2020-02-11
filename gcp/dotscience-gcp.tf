@@ -4,10 +4,10 @@ provider "google" {
 }
 
 provider "kubernetes" {
-  host = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
-  token = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
+  host                   = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
+  token                  = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
   cluster_ca_certificate = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
-  load_config_file = false
+  load_config_file       = false
 }
 
 data "google_client_config" "default" {
@@ -79,11 +79,11 @@ resource "google_compute_instance" "dotscience_hub_vm" {
   machine_type = "n1-standard-1"
   zone         = local.zone
 
- boot_disk {
-   initialize_params {
-     image = "dotscience-images/dotscience-hub-1581267373"
-   }
- }
+  boot_disk {
+    initialize_params {
+      image = "dotscience-images/dotscience-hub-1581267373"
+    }
+  }
 
   metadata_startup_script = <<-EOF
 #!/bin/bash -xe
