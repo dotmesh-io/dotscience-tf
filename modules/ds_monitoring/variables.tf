@@ -1,3 +1,8 @@
+variable "dotscience_environment" {
+  description = "Token to auth into the kubernetes cluster"
+  type        = string
+}
+
 variable "create_monitoring" {
   description = "Toggle for conditionally creating the monitoring services"
   type        = string

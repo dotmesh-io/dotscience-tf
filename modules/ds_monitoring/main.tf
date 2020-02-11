@@ -28,9 +28,7 @@ resource "kubernetes_service" "grafana_lb" {
   spec {
     selector = {
       app = "grafana"
-
     }
-    session_affinity = "ClientIP"
     port {
       name        = "app"
       port        = 80
@@ -40,6 +38,7 @@ resource "kubernetes_service" "grafana_lb" {
 
     type = "LoadBalancer"
   }
+  depends_on = [helm_release.grafana]
 }
 
 resource "kubernetes_secret" "grafana_admin" {
@@ -101,10 +100,15 @@ resource "helm_release" "grafana" {
     name  = "admin.existingSecret"
     value = "grafana"
   }
+
+  set {
+    name  = "ingress.enabled"
+    value = "true"
+  }
 }
 
 locals {
-  grafana_host = element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].hostname, list("")), 0)
+  grafana_host = var.dotscience_environment == "aws" ? element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].hostname, list("")), 0) : element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].ip, list("")), 0)
 }
 
 provider "grafana" {
@@ -118,5 +122,6 @@ resource "grafana_data_source" "prometheus" {
   name       = "prometheus"
   url        = "http://prometheus-server/"
   is_default = true
+
   depends_on = [kubernetes_service.grafana_lb]
 }
