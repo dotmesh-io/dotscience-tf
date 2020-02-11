@@ -18,28 +18,6 @@ variable "admin_password" {
   type        = string
 }
 
-variable "vpc_network_cidr" {
-  description = "The CIDR block for the entire VPC network"
-  type        = string
-  default     = "10.0.0.0/16"
-}
-
-variable "ssh_access_cidr" {
-  description = "The CIDR block that can connect via SSH"
-  type        = string
-}
-
-variable "hub_ingress_cidr" {
-  description = "The CIDR block for connections coming into the Hub"
-  type        = string
-}
-
-variable "hub_instance_name" {
-  description = "Hub Instance Name"
-  default     = "DotscienceHub"
-  type        = string
-}
-
 variable "hub_volume_size" {
   description = "The storage volume size in GB used for the Dotscience Hub. Must be larger than 128."
   type        = number
