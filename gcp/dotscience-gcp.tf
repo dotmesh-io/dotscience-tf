@@ -3,6 +3,13 @@ provider "google" {
   region  = var.region
 }
 
+provider "kubernetes" {
+  host = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
+  token = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
+  cluster_ca_certificate = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
+  load_config_file = false
+}
+
 data "google_client_config" "default" {
 }
 
@@ -39,6 +46,7 @@ module "ds_monitoring" {
   kubernetes_host        = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
   cluster_ca_certificate = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
   kubernetes_token       = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
+  dotscience_environment = "gcp"
 }
 
 resource "google_container_cluster" "dotscience_deployer" {
@@ -106,14 +114,6 @@ resource "google_compute_address" "hub_ipv4_address" {
   name = "dotscience-hub-ipv4-address-${random_id.default.hex}"
 }
 
-output "hub_public_url" {
-  value = join("", ["https://", local.hub_hostname])
-}
-
-output "hub_instance_name" {
-  value = google_compute_instance.dotscience_hub_vm.name
-}
-
 resource "google_compute_disk" "dotscience_hub_disk" {
   name = "dotscience-hub-disk-${random_id.default.hex}"
   type = "pd-ssd"
@@ -174,4 +174,3 @@ resource "google_compute_firewall" "dotscience_firewall" {
 resource "google_compute_network" "dotscience_network" {
   name = "dotscience-network-${random_id.default.hex}"
 }
-

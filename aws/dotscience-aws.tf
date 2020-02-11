@@ -7,6 +7,15 @@ provider "aws" {
   region  = var.region
 }
 
+
+provider "kubernetes" {
+  host                   = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
+  cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
+  token                  = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
+  load_config_file       = false
+  version                = "~> 1.9"
+}
+
 // Terraform plugin for creating random ids
 resource "random_id" "default" {
   byte_length = 8
@@ -91,6 +100,7 @@ module "ds_monitoring" {
   kubernetes_host        = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
   cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
   kubernetes_token       = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
+  dotscience_environment = "aws"
 }
 
 resource "aws_security_group" "all_worker_mgmt" {
