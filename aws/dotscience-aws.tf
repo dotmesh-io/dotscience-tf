@@ -212,6 +212,7 @@ resource "aws_security_group" "ds_runner_security_group" {
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [var.ssh_access_cidr]
+    description = "provides ssh access to the dotscience runner, for debugging"
   }
 
   ingress {
@@ -219,6 +220,7 @@ resource "aws_security_group" "ds_runner_security_group" {
     to_port     = 2376
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "access from the dotscience Hub to runner for receiving tasks via. gRPC"
   }
 
   egress {
@@ -226,6 +228,7 @@ resource "aws_security_group" "ds_runner_security_group" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "access to download images, dependencies, and self-updates of the runner"
   }
 }
 
@@ -239,6 +242,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = [var.hub_ingress_cidr]
+    description = "Access to the Dotscience Hub web UI"
   }
 
   ingress {
@@ -246,6 +250,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [var.ssh_access_cidr]
+    description = "provides ssh access to the dotscience Hub, for debugging"
   }
 
   ingress {
@@ -253,6 +258,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 8800
     protocol    = "tcp"
     cidr_blocks = [var.hub_ingress_cidr]
+    description = "Dotscience API gateway"
   }
 
   ingress {
@@ -260,6 +266,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 9800
     protocol    = "tcp"
     cidr_blocks = [var.hub_ingress_cidr]
+    description = "Dotscience webhook relay transponder connections"
   }
 
   ingress {
@@ -267,6 +274,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = [var.hub_ingress_cidr]
+    description = "Access to the Dotscience Hub web UI with TLS"
   }
 
   ingress {
@@ -274,6 +282,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 32607
     protocol    = "tcp"
     cidr_blocks = [var.hub_ingress_cidr]
+    description = "Access to the Dotmesh server API"
   }
 
 

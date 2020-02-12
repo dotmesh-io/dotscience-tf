@@ -167,6 +167,11 @@ resource "google_compute_firewall" "dotscience_firewall" {
     protocol = "tcp"
     ports    = ["80", "443", "8800", "9800", "22"]
   }
+  // Port 80   - Access to the Dotscience Hub web UI
+  // Port 443  - Access to the Dotscience Hub web UI with TLS
+  // Port 8800 - Dotscience API gateway
+  // Port 9800 - Dotscience webhook relay transponder connections
+  // Port 22   - Provides ssh access to the dotscience runner, for debugging 
 
   //source_tags = ["web"]
 }
