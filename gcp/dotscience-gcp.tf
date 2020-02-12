@@ -27,6 +27,7 @@ locals {
   hub_hostname   = join("", ["hub-", replace(google_compute_address.hub_ipv4_address.address, ".", "-"), ".", var.dotscience_domain])
   zone           = var.zone
   deployer_token = random_id.deployer_token.hex
+  grafana_host   = var.create_monitoring && var.create_gke ? module.ds_monitoring.grafana_host : ""
 }
 
 module "ds_deployer" {
@@ -89,7 +90,7 @@ resource "google_compute_instance" "dotscience_hub_vm" {
   metadata_startup_script = <<-EOF
 #!/bin/bash -xe
 echo "Starting Dotscience hub"
-/home/ubuntu/startup.sh --admin-password "${var.admin_password}" --cloud gcp --hub-size "${var.hub_volume_size}" --hub-device /dev/sdb --hub-hostname "${local.hub_hostname}" --use-kms=false --license-key="${var.license_key}" --letsencrypt-mode="${var.letsencrypt_mode}" --gcp-runner-project "${var.project}" --gcp-runner-zone "${local.zone}" --gcp-runner-machine-type "${var.runner_machine_type}" --deployer-token "${random_id.deployer_token.hex}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${module.ds_monitoring.grafana_host}"  --grafana-password "${var.grafana_admin_password}"
+/home/ubuntu/startup.sh --admin-password "${var.admin_password}" --cloud gcp --hub-size "${var.hub_volume_size}" --hub-device /dev/sdb --hub-hostname "${local.hub_hostname}" --use-kms=false --license-key="${var.license_key}" --letsencrypt-mode="${var.letsencrypt_mode}" --gcp-runner-project "${var.project}" --gcp-runner-zone "${local.zone}" --gcp-runner-machine-type "${var.runner_machine_type}" --deployer-token "${random_id.deployer_token.hex}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}"
 EOF
   network_interface {
     network = google_compute_network.dotscience_network.name
