@@ -169,7 +169,7 @@ resource "aws_iam_role_policy" "ds_policy" {
         "ec2:DescribeKeyPairs",
         "ec2:CreateTags"
       ],
-      "Resource": "*",
+      "Resource": "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.ds_hub.id}",
       "Effect": "Allow"
     }
   ]
