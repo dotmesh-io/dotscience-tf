@@ -40,6 +40,9 @@ locals {
   deployer_token = random_id.deployer_token.hex
   cluster_name   = "eks-${random_id.default.hex}"
   grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
+  hub_ami = var.amis[var.region].Hub
+  cpu_runner_ami = var.amis[var.region].CPURunner
+  gpu_runner_ami = var.amis[var.region].GPURunner
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -160,21 +163,36 @@ resource "aws_iam_role_policy" "ds_policy" {
 {
   "Version": "2012-10-17",
   "Statement": [
-    {
-      "Action": [
-        "ec2:AttachVolume",
-        "ec2:DescribeInstances",
-        "ec2:DescribeTags",
-        "ec2:DescribeVolumes",
-        "ec2:RunInstances",
-        "ec2:TerminateInstances",
-        "ec2:DescribeKeyPairs",
-        "ec2:CreateTags"
-      ],
-      "Resource": "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.ds_hub.id}",
-      "Effect": "Allow"
-    }
-  ]
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AttachVolume",
+                "ec2:TerminateInstances",
+                "ec2:CreateTags",
+                "ec2:RunInstances"
+            ],
+            "Resource": [
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.ds_hub.id}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:subnet/${local.hub_subnet}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:volume/${aws_ebs_volume.ds_hub_volume.id}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.ds_hub_security_group.id}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:network-interface/*",
+                "arn:aws:ec2:${var.region}::image/${local.hub_ami}",
+                "arn:aws:ec2:${var.region}::image/${local.cpu_runner_ami}",
+                "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeInstances",
+                "ec2:DescribeTags",
+                "ec2:DescribeVolumes",
+                "ec2:DescribeKeyPairs"
+            ],
+            "Resource": "*"
+        }
+    ]
 }
 POLICY
 }
@@ -316,7 +334,7 @@ resource "aws_ebs_volume" "ds_hub_volume" {
 }
 
 resource "aws_instance" "ds_hub" {
-  ami                  = var.amis[var.region].Hub
+  ami                  = local.hub_ami
   instance_type        = var.hub_instance_type
   iam_instance_profile = aws_iam_instance_profile.ds_instance_profile.id
   key_name             = var.key_name
@@ -344,7 +362,7 @@ resource "aws_instance" "ds_hub" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
+              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
               EOF
   root_block_device {
     volume_type           = "gp2"
