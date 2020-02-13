@@ -172,11 +172,13 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ec2:RunInstances"
             ],
             "Resource": [
-                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.ds_hub.id}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:subnet/${local.hub_subnet}",
-                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:volume/${aws_ebs_volume.ds_hub_volume.id}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:volume/*",
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.ds_hub_security_group.id}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.ds_runner_security_group.id}",
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:network-interface/*",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:key-pair/${var.key_name}",
                 "arn:aws:ec2:${var.region}::image/${local.hub_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.cpu_runner_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}"
