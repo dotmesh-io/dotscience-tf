@@ -13,7 +13,7 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
   token                  = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
   load_config_file       = false
-  version                = "~> 1.9"
+  version                = "~>1.10.0"
 }
 
 // Terraform plugin for creating random ids
@@ -39,6 +39,10 @@ locals {
   hub_subnet     = module.vpc.public_subnets[0]
   deployer_token = random_id.deployer_token.hex
   cluster_name   = "eks-${random_id.default.hex}"
+  grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
+  hub_ami = var.amis[var.region].Hub
+  cpu_runner_ami = var.amis[var.region].CPURunner
+  gpu_runner_ami = var.amis[var.region].GPURunner
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -126,6 +130,7 @@ module "eks" {
   cluster_name = local.cluster_name
   subnets      = module.vpc.private_subnets
   create_eks   = var.create_eks ? true : false
+  manage_aws_auth = var.create_eks ? true : false
 
   tags = {
     Environment = local.cluster_name
@@ -158,21 +163,38 @@ resource "aws_iam_role_policy" "ds_policy" {
 {
   "Version": "2012-10-17",
   "Statement": [
-    {
-      "Action": [
-        "ec2:AttachVolume",
-        "ec2:DescribeInstances",
-        "ec2:DescribeTags",
-        "ec2:DescribeVolumes",
-        "ec2:RunInstances",
-        "ec2:TerminateInstances",
-        "ec2:DescribeKeyPairs",
-        "ec2:CreateTags"
-      ],
-      "Resource": "*",
-      "Effect": "Allow"
-    }
-  ]
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AttachVolume",
+                "ec2:TerminateInstances",
+                "ec2:CreateTags",
+                "ec2:RunInstances"
+            ],
+            "Resource": [
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:subnet/${local.hub_subnet}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:volume/*",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.ds_hub_security_group.id}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.ds_runner_security_group.id}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:network-interface/*",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:key-pair/${var.key_name}",
+                "arn:aws:ec2:${var.region}::image/${local.hub_ami}",
+                "arn:aws:ec2:${var.region}::image/${local.cpu_runner_ami}",
+                "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeInstances",
+                "ec2:DescribeTags",
+                "ec2:DescribeVolumes",
+                "ec2:DescribeKeyPairs"
+            ],
+            "Resource": "*"
+        }
+    ]
 }
 POLICY
 }
@@ -212,6 +234,7 @@ resource "aws_security_group" "ds_runner_security_group" {
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [var.ssh_access_cidr]
+    description = "provides ssh access to the dotscience runner, for debugging"
   }
 
   ingress {
@@ -219,6 +242,7 @@ resource "aws_security_group" "ds_runner_security_group" {
     to_port     = 2376
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "access from the dotscience Hub to runner for receiving tasks via. gRPC"
   }
 
   egress {
@@ -226,6 +250,7 @@ resource "aws_security_group" "ds_runner_security_group" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "access to download images, dependencies, and self-updates of the runner"
   }
 }
 
@@ -239,6 +264,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = [var.hub_ingress_cidr]
+    description = "Access to the Dotscience Hub web UI"
   }
 
   ingress {
@@ -246,6 +272,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [var.ssh_access_cidr]
+    description = "provides ssh access to the dotscience Hub, for debugging"
   }
 
   ingress {
@@ -253,6 +280,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 8800
     protocol    = "tcp"
     cidr_blocks = [var.hub_ingress_cidr]
+    description = "Dotscience API gateway"
   }
 
   ingress {
@@ -260,6 +288,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 9800
     protocol    = "tcp"
     cidr_blocks = [var.hub_ingress_cidr]
+    description = "Dotscience webhook relay transponder connections"
   }
 
   ingress {
@@ -267,6 +296,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = [var.hub_ingress_cidr]
+    description = "Access to the Dotscience Hub web UI with TLS"
   }
 
   ingress {
@@ -274,6 +304,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     to_port     = 32607
     protocol    = "tcp"
     cidr_blocks = [var.hub_ingress_cidr]
+    description = "Access to the Dotmesh server API"
   }
 
 
@@ -305,7 +336,7 @@ resource "aws_ebs_volume" "ds_hub_volume" {
 }
 
 resource "aws_instance" "ds_hub" {
-  ami                  = var.amis[var.region].Hub
+  ami                  = local.hub_ami
   instance_type        = var.hub_instance_type
   iam_instance_profile = aws_iam_instance_profile.ds_instance_profile.id
   key_name             = var.key_name
@@ -322,6 +353,7 @@ resource "aws_instance" "ds_hub" {
   # TODO: user_data = "${file("userdata.sh")}"
   user_data = <<-EOF
               #! /bin/bash
+              set -euo pipefail
               echo "Dotscience hub"
               INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
               echo "Attaching volume ${aws_ebs_volume.ds_hub_volume.id} to $INSTANCE_ID"
@@ -333,7 +365,10 @@ resource "aws_instance" "ds_hub" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${var.amis[var.region].GPURunner}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${module.ds_monitoring.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
+              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
+              DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
+              e2label $DATA_DEVICE data
+              echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
               EOF
   root_block_device {
     volume_type           = "gp2"
