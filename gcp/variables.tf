@@ -1,3 +1,8 @@
+variable "id" {
+  description = "GCP hub hachine image ID"
+  type        = string
+}
+
 variable "region" {
   type    = string
   default = "us-east1"

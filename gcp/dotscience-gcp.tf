@@ -53,6 +53,10 @@ module "ds_monitoring" {
   dotscience_environment = "gcp"
 }
 
+# data "http" "gcp-machine-image" {
+#   url = "https://storage.googleapis.com/dotscience-amis/latest/hub-gcp-image-d552006adc14485a722bf1910b3b2048adab75fa.tfvars.json"
+# }
+
 resource "google_container_cluster" "dotscience_deployer" {
   count    = var.create_gke ? 1 : 0
   name     = "dotscience-deployer-${random_id.default.hex}"
@@ -61,7 +65,7 @@ resource "google_container_cluster" "dotscience_deployer" {
   // XXX TODO switch to using a node pool so we don't have to destroy the whole cluster if we change it
   // https://www.terraform.io/docs/providers/google/r/container_cluster.html#node_pool
 
-  initial_node_count = 3
+  initial_node_count = 1
 
   node_config {
     machine_type = "n1-standard-2"
@@ -85,7 +89,7 @@ resource "google_compute_instance" "dotscience_hub_vm" {
 
   boot_disk {
     initialize_params {
-      image = "dotscience-images/dotscience-hub-1581615950"
+      image = "dotscience-images/${var.id}"
     }
   }
 

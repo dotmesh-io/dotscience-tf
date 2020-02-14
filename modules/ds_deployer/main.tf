@@ -217,7 +217,7 @@ resource "kubernetes_deployment" "dotscience_deployer" {
 }
 
 resource "helm_release" "nginx-ingress" {
-  # count = var.create_deployer ? 1 : 0
+  count = var.create_deployer ? 1 : 0
 
   name  = "nginx-ingress"
   repository = data.helm_repository.stable.metadata[0].name
@@ -231,7 +231,6 @@ resource "helm_release" "nginx-ingress" {
 }
 
 resource "kubernetes_service" "ingress_lb" {
-  # count = var.create_deployer ? 1 : 0
 
   depends_on = [
     helm_release.nginx-ingress
