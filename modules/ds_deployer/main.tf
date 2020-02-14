@@ -11,6 +11,19 @@ provider "kubernetes" {
   version                = "~> 1.9"
 }
 
+provider "helm" {
+  kubernetes {
+    host                   = var.kubernetes_host
+    cluster_ca_certificate = var.cluster_ca_certificate
+    token                  = var.kubernetes_token
+  }
+}
+
+data "helm_repository" "stable" {
+  name = "stable"
+  url  = "https://kubernetes-charts.storage.googleapis.com"
+}
+
 resource "kubernetes_namespace" "dotscience_deployer" {
   count = var.create_deployer ? 1 : 0
 
@@ -203,177 +216,54 @@ resource "kubernetes_deployment" "dotscience_deployer" {
   }
 }
 
-resource "kubernetes_namespace" "webrelay_ingress" {
-  count = var.create_deployer ? 1 : 0
+resource "helm_release" "nginx-ingress" {
+  # count = var.create_deployer ? 1 : 0
 
-  metadata {
-    name = "webrelay-ingress"
+  name  = "nginx-ingress"
+  chart = "stable/nginx-ingress"
+  timeout = 300
+
+  set {
+    name  = "controller.containerPort.http"
+    value = "80"
   }
 }
 
-resource "kubernetes_service_account" "webrelay" {
-  count = var.create_deployer ? 1 : 0
-
-  metadata {
-    name      = "webrelay"
-    namespace = "webrelay-ingress"
-  }
+resource "kubernetes_service" "ingress_lb" {
+  # count = var.create_deployer ? 1 : 0
 
   depends_on = [
-    kubernetes_namespace.webrelay_ingress
+    helm_release.nginx-ingress
   ]
-}
 
-resource "kubernetes_deployment" "webrelay" {
-  count = var.create_deployer ? 1 : 0
-
-  depends_on = [
-    kubernetes_secret.webrelay_credentials,
-    kubernetes_namespace.webrelay_ingress
-  ]
   metadata {
-    name      = "webrelay"
-    namespace = "webrelay-ingress"
-
+    name = "external-ingress"
     labels = {
-      app = "webrelay"
+      "app.kubernetes.io/name" = "ingress-nginx"
+      "app.kubernetes.io/part-of" = "ingress-nginx"
     }
   }
-
   spec {
-    replicas = 1
-
-    selector {
-      match_labels = {
-        app = "webrelay"
-      }
+    selector = {
+      "app.kubernetes.io/name" = "ingress-nginx"
+      "app.kubernetes.io/part-of" = "ingress-nginx"
+    }
+    session_affinity = "ClientIP"
+    port {
+      name        = "app"
+      port        = 80
+      target_port = "http"
+      protocol    = "TCP"
     }
 
-    template {
-      metadata {
-        labels = {
-          app = "webrelay"
-        }
-      }
-
-      spec {
-        container {
-          name    = "webrelay"
-          image   = "docker.io/webrelay/ingress:latest"
-          command = ["reingress"]
-          args    = ["server", "--incluster"]
-
-          env {
-            name  = "RELAY_NAME"
-            value = random_id.default.hex
-          }
-
-          env {
-            name = "RELAY_KEY"
-
-            value_from {
-              secret_key_ref {
-                name = "webrelay-credentials"
-                key  = "key"
-              }
-            }
-          }
-
-          env {
-            name = "RELAY_SECRET"
-
-            value_from {
-              secret_key_ref {
-                name = "webrelay-credentials"
-                key  = "secret"
-              }
-            }
-          }
-          image_pull_policy = "Always"
-        }
-
-        termination_grace_period_seconds = 10
-        dns_policy                       = "ClusterFirst"
-        service_account_name             = "webrelay"
-        automount_service_account_token  = true
-      }
-    }
-  }
-
-}
-
-resource "kubernetes_cluster_role_binding" "webrelay" {
-  count = var.create_deployer ? 1 : 0
-
-  metadata {
-    name = "webrelay"
-  }
-
-  subject {
-    kind      = "ServiceAccount"
-    name      = "webrelay"
-    namespace = "webrelay-ingress"
-  }
-
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "ClusterRole"
-    name      = "webrelay"
-  }
-
-  depends_on = [
-    kubernetes_namespace.webrelay_ingress
-  ]
-}
-
-resource "kubernetes_cluster_role" "webrelay" {
-  count = var.create_deployer ? 1 : 0
-
-  metadata {
-    name = "webrelay"
-  }
-
-  rule {
-    verbs      = ["list", "watch"]
-    api_groups = [""]
-    resources  = ["configmaps", "endpoints", "nodes", "pods"]
-  }
-
-  rule {
-    verbs      = ["get"]
-    api_groups = [""]
-    resources  = ["nodes"]
-  }
-
-  rule {
-    verbs      = ["get", "list", "watch"]
-    api_groups = [""]
-    resources  = ["services"]
-  }
-
-  rule {
-    verbs      = ["get", "list", "watch"]
-    api_groups = ["extensions"]
-    resources  = ["ingresses"]
+    type = "LoadBalancer"
   }
 }
 
-resource "kubernetes_secret" "webrelay_credentials" {
-  count = var.create_deployer ? 1 : 0
+locals {
+  ingress_host = kubernetes_service.ingress_lb.load_balancer_ingress[0].ip
+}
 
-  metadata {
-    name      = "webrelay-credentials"
-    namespace = "webrelay-ingress"
-  }
-
-  data = {
-    key    = var.webrelay_key
-    secret = var.webrelay_secret
-  }
-
-  type = "Opaque"
-
-  depends_on = [
-    kubernetes_namespace.webrelay_ingress
-  ]
+output "ingress_host" {
+  value = local.ingress_host
 }
