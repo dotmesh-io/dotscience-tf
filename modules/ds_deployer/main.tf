@@ -220,6 +220,7 @@ resource "helm_release" "nginx-ingress" {
   # count = var.create_deployer ? 1 : 0
 
   name  = "nginx-ingress"
+  repository = data.helm_repository.stable.metadata[0].name
   chart = "stable/nginx-ingress"
   timeout = 300
 
