@@ -12,6 +12,7 @@ provider "helm" {
     cluster_ca_certificate = var.cluster_ca_certificate
     token                  = var.kubernetes_token
   }
+  version                  = "1.0.0"
 }
 
 data "helm_repository" "stable" {

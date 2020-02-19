@@ -7,18 +7,6 @@ variable "region" {
   default = "us-east-1"
 }
 
-variable "region_number" {
-  # Arbitrary mapping of region name to number to use in
-  # a VPC's CIDR prefix.
-  default = {
-    us-east-1      = 1
-    us-west-1      = 2
-    us-west-2      = 3
-    eu-central-1   = 4
-    ap-northeast-1 = 5
-  }
-}
-
 variable "key_name" {
   description = "Name of an existing EC2 KeyPair to enable SSH access to the instances"
   type        = string
