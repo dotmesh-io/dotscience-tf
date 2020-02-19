@@ -17,6 +17,7 @@ provider "helm" {
     cluster_ca_certificate = var.cluster_ca_certificate
     token                  = var.kubernetes_token
   }
+  version                  = "1.0.0"
 }
 
 data "helm_repository" "stable" {
@@ -262,8 +263,4 @@ resource "kubernetes_service" "ingress_lb" {
 
 locals {
   ingress_host = kubernetes_service.ingress_lb.load_balancer_ingress[0].ip
-}
-
-output "ingress_host" {
-  value = local.ingress_host
 }
