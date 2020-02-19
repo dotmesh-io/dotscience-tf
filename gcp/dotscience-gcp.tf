@@ -96,6 +96,10 @@ resource "google_compute_instance" "dotscience_hub_vm" {
 #!/bin/bash -xe
 echo "Starting Dotscience hub"
 
+export GO111MODULE=off
+export GOPATH=/home/ubuntu/go
+go get github.com/spf13/cobra
+
 sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/unstable/ds-startup
 sudo chmod +wx /usr/local/bin/ds-startup
 
