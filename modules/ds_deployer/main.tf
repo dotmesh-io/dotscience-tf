@@ -229,6 +229,11 @@ resource "helm_release" "nginx-ingress" {
     name  = "controller.containerPort.http"
     value = "80"
   }
+
+  set {
+    name  = "controller.service.enabled"
+    value = "false"
+  }
 }
 
 resource "kubernetes_service" "ingress_lb" {
@@ -240,14 +245,16 @@ resource "kubernetes_service" "ingress_lb" {
   metadata {
     name = "external-ingress"
     labels = {
-      "app.kubernetes.io/name" = "ingress-nginx"
-      "app.kubernetes.io/part-of" = "ingress-nginx"
+      "app" = "nginx-ingress"
+      "component" = "controller"
+      "release" = "nginx-ingress"
     }
   }
   spec {
     selector = {
-      "app.kubernetes.io/name" = "ingress-nginx"
-      "app.kubernetes.io/part-of" = "ingress-nginx"
+      "app" = "nginx-ingress"
+      "component" = "controller"
+      "release" = "nginx-ingress"
     }
     session_affinity = "ClientIP"
     port {
