@@ -10,3 +10,7 @@ output "hub_instance_name" {
 output "grafana_host" {
   value = module.ds_monitoring.grafana_host
 }
+
+output "models_served_under" {
+  value = local.deployer_model_subdomain
+}
