@@ -94,6 +94,7 @@ module "ds_deployer" {
   kubernetes_host        = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
   cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
   kubernetes_token       = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
+  dotscience_environment = "aws"
 }
 
 module "ds_monitoring" {
@@ -402,3 +403,9 @@ resource "aws_kms_key" "ds_kms_key" {
   enable_key_rotation = false
   policy = data.aws_iam_policy_document.ds_kms_policy.json
 }
+
+# TODO: create local env file for ds cli
+# resource "local_file" "ds_env_file" {
+#     content     = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
+#     filename = ".ds_env.sh"
+# }
