@@ -193,6 +193,13 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ec2:DescribeKeyPairs"
             ],
             "Resource": "*"
+            },
+       {
+            "Effect": "Allow",
+            "Action": [
+                "kms:GenerateDataKey"
+            ],
+            "Resource": "*"
         }
     ]
 }
