@@ -269,5 +269,5 @@ resource "kubernetes_service" "ingress_lb" {
 }
 
 locals {
-  ingress_host = kubernetes_service.ingress_lb.load_balancer_ingress[0].ip
+  ingress_host = var.dotscience_environment == "aws" ? kubernetes_service.ingress_lb[*].load_balancer_ingress[0].hostname :  kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
 }
