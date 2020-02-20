@@ -1,5 +1,5 @@
 variable "dotscience_environment" {
-  description = "Token to auth into the kubernetes cluster"
+  description = "Dotscience environment such as 'gcp', 'aws'"
   type        = string
 }
 
