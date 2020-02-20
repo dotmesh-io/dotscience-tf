@@ -111,7 +111,7 @@ resource "helm_release" "grafana" {
 }
 
 locals {
-  grafana_host = var.dotscience_environment == "aws" ? "http://${element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].hostname, list("")), 0)}/" : "http://${element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].ip, list("")), 0)}/"
+  grafana_host = var.dotscience_environment == "aws" ? "http://${element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].hostname, list("")), 0)}" : "http://${element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].ip, list("")), 0)}"
 }
 
 provider "grafana" {
