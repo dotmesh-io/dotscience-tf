@@ -241,8 +241,8 @@ resource "aws_security_group" "ds_runner_security_group" {
     from_port   = 2376
     to_port     = 2376
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "access from the dotscience Hub to runner for receiving tasks via. gRPC"
+    cidr_blocks = [var.vpc_network_cidr]
+    description = "access from the dotscience Hub to runner's docker socket, to start the runner container"
   }
 
   egress {
