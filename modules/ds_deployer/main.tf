@@ -256,7 +256,7 @@ resource "kubernetes_service" "ingress_lb" {
       "component" = "controller"
       "release" = "nginx-ingress"
     }
-    session_affinity = "ClientIP"
+
     port {
       name        = "app"
       port        = 80
