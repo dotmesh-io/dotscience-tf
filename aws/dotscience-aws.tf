@@ -350,7 +350,6 @@ resource "aws_instance" "ds_hub" {
     aws_ebs_volume.ds_hub_volume,
     aws_kms_key.ds_kms_key,
   aws_security_group.ds_runner_security_group]
-  # TODO: user_data = "${file("userdata.sh")}"
   user_data = <<-EOF
               #! /bin/bash
               set -euo pipefail
