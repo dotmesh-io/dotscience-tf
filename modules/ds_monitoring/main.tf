@@ -11,8 +11,9 @@ provider "helm" {
     host                   = var.kubernetes_host
     cluster_ca_certificate = var.cluster_ca_certificate
     token                  = var.kubernetes_token
+    load_config_file       = false
   }
-  version                  = "1.0.0"
+  version = "1.0.0"
 }
 
 data "helm_repository" "stable" {
@@ -28,7 +29,7 @@ resource "kubernetes_service" "grafana_lb" {
   }
   spec {
     selector = {
-      app = "grafana"
+      "app.kubernetes.io/name" = "grafana"
     }
     port {
       name        = "app"
@@ -109,11 +110,11 @@ resource "helm_release" "grafana" {
 }
 
 locals {
-  grafana_host = var.dotscience_environment == "aws" ? element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].hostname, list("")), 0) : element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].ip, list("")), 0)
+  grafana_host = var.dotscience_environment == "aws" ? "http://${element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].hostname, list("")), 0)}" : "http://${element(concat(kubernetes_service.grafana_lb[*].load_balancer_ingress[0].ip, list("")), 0)}"
 }
 
 provider "grafana" {
-  url  = "http://${local.grafana_host}/"
+  url  = local.grafana_host
   auth = "${var.grafana_admin_user}:${var.grafana_admin_password}"
 }
 

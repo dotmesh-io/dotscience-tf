@@ -150,7 +150,6 @@ module "eks" {
     },
   ]
 
-  worker_additional_security_group_ids = concat(aws_security_group.all_worker_mgmt[*].id, list(""))
   map_roles                            = var.map_roles
   map_users                            = var.map_users
   map_accounts                         = var.map_accounts
@@ -191,6 +190,13 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ec2:DescribeTags",
                 "ec2:DescribeVolumes",
                 "ec2:DescribeKeyPairs"
+            ],
+            "Resource": "*"
+            },
+       {
+            "Effect": "Allow",
+            "Action": [
+                "kms:GenerateDataKey"
             ],
             "Resource": "*"
         }
@@ -350,7 +356,6 @@ resource "aws_instance" "ds_hub" {
     aws_ebs_volume.ds_hub_volume,
     aws_kms_key.ds_kms_key,
   aws_security_group.ds_runner_security_group]
-  # TODO: user_data = "${file("userdata.sh")}"
   user_data = <<-EOF
               #! /bin/bash
               set -euo pipefail
@@ -381,25 +386,25 @@ resource "aws_instance" "ds_hub" {
   }
 }
 
+data "aws_iam_policy_document" "ds_kms_policy" {
+  statement {
+    principals {
+      type = "AWS"
+      identifiers = [ "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" ]
+    }
+    actions = [
+      "kms:*"
+    ]
+    resources = [
+      "*"
+    ]
+  }
+}
+
 resource "aws_kms_key" "ds_kms_key" {
   description         = "Master key for protecting sensitive data"
   key_usage           = "ENCRYPT_DECRYPT"
   is_enabled          = true
   enable_key_rotation = false
-
-  policy = <<POLICY
-{
-  "Version" : "2012-10-17",
-  "Id" : "key-default-1",
-  "Statement" : [ {
-    "Sid" : "Enable IAM User Permissions",
-    "Effect" : "Allow",
-    "Principal" : {
-      "AWS" : [ "${data.aws_caller_identity.current.arn}", "${aws_iam_role.ds_role.arn}" ]
-    },
-    "Action" : "kms:*",
-    "Resource" : "*"
-  } ]
-}
-POLICY
+  policy = data.aws_iam_policy_document.ds_kms_policy.json
 }

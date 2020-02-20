@@ -5,3 +5,7 @@ output "DotscienceHub_IP" {
 output "DotscienceHub_URL" {
   value = "https://${local.hub_hostname}"
 }
+
+output "Grafana_URL" {
+  value = local.grafana_host
+}
