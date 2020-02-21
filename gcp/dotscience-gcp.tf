@@ -194,3 +194,8 @@ resource "google_compute_firewall" "dotscience_firewall" {
 resource "google_compute_network" "dotscience_network" {
   name = "dotscience-network-${random_id.default.hex}"
 }
+
+resource "local_file" "ds_env_file" {
+    content     = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
+    filename = ".ds_env.sh"
+}

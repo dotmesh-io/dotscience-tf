@@ -14,3 +14,7 @@ output "grafana_host" {
 output "models_served_under" {
   value = local.deployer_model_subdomain
 }
+
+output "CLI_env_file" {
+  value = "source .ds_env.sh"
+}
