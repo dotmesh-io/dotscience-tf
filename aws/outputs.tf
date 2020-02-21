@@ -9,3 +9,7 @@ output "DotscienceHub_URL" {
 output "Grafana_URL" {
   value = local.grafana_host
 }
+
+output "CLI_env_file" {
+  value = "source .ds_env.sh"
+}
