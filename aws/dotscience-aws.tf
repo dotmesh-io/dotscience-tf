@@ -151,7 +151,6 @@ module "eks" {
     },
   ]
 
-  worker_additional_security_group_ids = concat(aws_security_group.all_worker_mgmt[*].id, list(""))
   map_roles                            = var.map_roles
   map_users                            = var.map_users
   map_accounts                         = var.map_accounts
@@ -192,6 +191,13 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ec2:DescribeTags",
                 "ec2:DescribeVolumes",
                 "ec2:DescribeKeyPairs"
+            ],
+            "Resource": "*"
+            },
+       {
+            "Effect": "Allow",
+            "Action": [
+                "kms:GenerateDataKey"
             ],
             "Resource": "*"
         }
