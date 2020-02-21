@@ -37,6 +37,7 @@ data "aws_caller_identity" "current" {}
 locals {
   hub_hostname   = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
   hub_subnet     = module.vpc.public_subnets[0]
+  runner_subnet     = module.vpc.private_subnets[0]
   deployer_token = random_id.deployer_token.hex
   cluster_name   = "eks-${random_id.default.hex}"
   grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
@@ -172,7 +173,7 @@ resource "aws_iam_role_policy" "ds_policy" {
             ],
             "Resource": [
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
-                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:subnet/${local.hub_subnet}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:subnet/${local.runner_subnet}",
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:volume/*",
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.ds_hub_security_group.id}",
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.ds_runner_security_group.id}",
@@ -247,7 +248,7 @@ resource "aws_security_group" "ds_runner_security_group" {
     from_port   = 2376
     to_port     = 2376
     protocol    = "tcp"
-    cidr_blocks = [var.vpc_network_cidr]
+    security_groups = [aws_security_group.ds_hub_security_group.id]
     description = "access from the dotscience Hub to runner docker socket, to start the runner container"
   }
 
@@ -313,7 +314,6 @@ resource "aws_security_group" "ds_hub_security_group" {
     description = "Access to the Dotmesh server API"
   }
 
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -370,7 +370,7 @@ resource "aws_instance" "ds_hub" {
               echo "Waiting for mount device to show up"
               sleep 60
               echo "Starting Dotscience hub"  
-              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
+              /home/ubuntu/startup.sh --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
