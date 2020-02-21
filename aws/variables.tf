@@ -4,7 +4,13 @@ variable "dotscience_aws_version" {
 }
 
 variable "region" {
+  description = "AWS region in which Dotscience will be provisioned in"
   default = "us-east-1"
+}
+
+variable "aws_role_arn" {
+  description = "AWS role ARN for Terraform to use to assume Role into. Format arn:aws:iam::account-id:role/role-name"
+  type = string
 }
 
 variable "key_name" {
@@ -27,7 +33,6 @@ variable "ssh_access_cidr" {
   description = "The CIDR block that can connect via SSH"
   type        = string
 }
-
 
 variable "hub_ingress_cidr" {
   description = "The CIDR block for connections coming into the Hub"
