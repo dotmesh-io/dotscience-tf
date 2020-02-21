@@ -3,10 +3,13 @@ terraform {
 }
 
 provider "aws" {
-  version = ">= 2.28.1"
-  region  = var.region
+  assume_role {
+    role_arn     = var.aws_role_arn
+    session_name = "dotscience-tf"
+  }
+  region = var.region
+  version = "~> 2.50.0"
 }
-
 
 provider "kubernetes" {
   host                   = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
@@ -40,7 +43,7 @@ locals {
   deployer_token = random_id.deployer_token.hex
   cluster_name   = "eks-${random_id.default.hex}"
   grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
-  hub_ami = var.amis[var.region].Hub
+  hub_ami        = var.amis[var.region].Hub
   cpu_runner_ami = var.amis[var.region].CPURunner
   gpu_runner_ami = var.amis[var.region].GPURunner
 }
@@ -126,10 +129,10 @@ resource "aws_security_group" "all_worker_mgmt" {
 }
 
 module "eks" {
-  source       = "terraform-aws-modules/eks/aws"
-  cluster_name = local.cluster_name
-  subnets      = module.vpc.private_subnets
-  create_eks   = var.create_eks ? true : false
+  source          = "terraform-aws-modules/eks/aws"
+  cluster_name    = local.cluster_name
+  subnets         = module.vpc.private_subnets
+  create_eks      = var.create_eks ? true : false
   manage_aws_auth = var.create_eks ? true : false
 
   tags = {
@@ -150,9 +153,9 @@ module "eks" {
     },
   ]
 
-  map_roles                            = var.map_roles
-  map_users                            = var.map_users
-  map_accounts                         = var.map_accounts
+  map_roles    = var.map_roles
+  map_users    = var.map_users
+  map_accounts = var.map_accounts
 }
 
 resource "aws_iam_role_policy" "ds_policy" {
@@ -389,8 +392,8 @@ resource "aws_instance" "ds_hub" {
 data "aws_iam_policy_document" "ds_kms_policy" {
   statement {
     principals {
-      type = "AWS"
-      identifiers = [ "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" ]
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
     }
     actions = [
       "kms:*"
@@ -406,5 +409,5 @@ resource "aws_kms_key" "ds_kms_key" {
   key_usage           = "ENCRYPT_DECRYPT"
   is_enabled          = true
   enable_key_rotation = false
-  policy = data.aws_iam_policy_document.ds_kms_policy.json
+  policy              = data.aws_iam_policy_document.ds_kms_policy.json
 }
