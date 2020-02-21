@@ -410,8 +410,7 @@ resource "aws_kms_key" "ds_kms_key" {
   policy = data.aws_iam_policy_document.ds_kms_policy.json
 }
 
-# TODO: create local env file for ds cli
-# resource "local_file" "ds_env_file" {
-#     content     = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
-#     filename = ".ds_env.sh"
-# }
+resource "local_file" "ds_env_file" {
+    content     = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
+    filename = ".ds_env.sh"
+}
