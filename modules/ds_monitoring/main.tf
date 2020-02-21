@@ -116,6 +116,7 @@ locals {
 provider "grafana" {
   url  = local.grafana_host
   auth = "${var.grafana_admin_user}:${var.grafana_admin_password}"
+  version = "~> 1.5"
 }
 
 #resource "grafana_data_source" "prometheus" {
