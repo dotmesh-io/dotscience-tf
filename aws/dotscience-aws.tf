@@ -39,7 +39,7 @@ locals {
   hub_subnet     = module.vpc.public_subnets[0]
   deployer_token = random_id.deployer_token.hex
   # TODO: fix ingress_host, should be able to handle subdomains for this
-  deployer_model_subdomain = var.create_deployer ? join("", [".models-", module.ds_deployer.ingress_host]) : ""
+  deployer_model_subdomain = var.create_deployer ? join("", [".models-", element(concat(module.ds_deployer.ingress_host, list("")), 0)]) : ""
   cluster_name   = "eks-${random_id.default.hex}"
   grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
   hub_ami = var.amis[var.region].Hub
