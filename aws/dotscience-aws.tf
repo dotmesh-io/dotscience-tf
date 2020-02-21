@@ -3,10 +3,13 @@ terraform {
 }
 
 provider "aws" {
-  version = ">= 2.28.1"
-  region  = var.region
+  assume_role {
+    role_arn     = var.aws_role_arn
+    session_name = "dotscience-tf"
+  }
+  region = var.region
+  version = "~> 2.50.0"
 }
-
 
 provider "kubernetes" {
   host                   = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
@@ -42,7 +45,7 @@ locals {
   deployer_model_subdomain = var.create_deployer ? join("", [".models-", element(concat(module.ds_deployer.ingress_host, list("")), 0)]) : ""
   cluster_name   = "eks-${random_id.default.hex}"
   grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
-  hub_ami = var.amis[var.region].Hub
+  hub_ami        = var.amis[var.region].Hub
   cpu_runner_ami = var.amis[var.region].CPURunner
   gpu_runner_ami = var.amis[var.region].GPURunner
 }
@@ -129,10 +132,10 @@ resource "aws_security_group" "all_worker_mgmt" {
 }
 
 module "eks" {
-  source       = "terraform-aws-modules/eks/aws"
-  cluster_name = local.cluster_name
-  subnets      = module.vpc.private_subnets
-  create_eks   = var.create_eks ? true : false
+  source          = "terraform-aws-modules/eks/aws"
+  cluster_name    = local.cluster_name
+  subnets         = module.vpc.private_subnets
+  create_eks      = var.create_eks ? true : false
   manage_aws_auth = var.create_eks ? true : false
 
   tags = {
@@ -153,9 +156,9 @@ module "eks" {
     },
   ]
 
-  map_roles                            = var.map_roles
-  map_users                            = var.map_users
-  map_accounts                         = var.map_accounts
+  map_roles    = var.map_roles
+  map_users    = var.map_users
+  map_accounts = var.map_accounts
 }
 
 resource "aws_iam_role_policy" "ds_policy" {
@@ -372,16 +375,13 @@ resource "aws_instance" "ds_hub" {
               done
               echo "Waiting for mount device to show up"
               sleep 60
-              echo "Starting Dotscience hub"
-
+              echo "Starting Dotscience hub"  
               export GO111MODULE=off
               export GOPATH=/home/ubuntu/go
               go get github.com/spf13/cobra
-
-              sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/unstable/ds-startup
+              sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/stable/latest/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain "${local.deployer_model_subdomain}"
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
@@ -400,8 +400,8 @@ resource "aws_instance" "ds_hub" {
 data "aws_iam_policy_document" "ds_kms_policy" {
   statement {
     principals {
-      type = "AWS"
-      identifiers = [ "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" ]
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
     }
     actions = [
       "kms:*"
@@ -417,7 +417,7 @@ resource "aws_kms_key" "ds_kms_key" {
   key_usage           = "ENCRYPT_DECRYPT"
   is_enabled          = true
   enable_key_rotation = false
-  policy = data.aws_iam_policy_document.ds_kms_policy.json
+  policy              = data.aws_iam_policy_document.ds_kms_policy.json
 }
 
 resource "local_file" "ds_env_file" {
