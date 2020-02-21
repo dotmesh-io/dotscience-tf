@@ -238,9 +238,7 @@ resource "helm_release" "nginx-ingress" {
 
 resource "kubernetes_service" "ingress_lb" {
 
-  depends_on = [
-    helm_release.nginx-ingress
-  ]
+  count = var.create_deployer ? 1 : 0
 
   metadata {
     name = "external-ingress"
