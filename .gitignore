@@ -5,3 +5,4 @@ terraform.tfstate.backup
 terraform.tfstate
 kubeconfig_*
 .ds_env.sh
+.assume_role.sh
