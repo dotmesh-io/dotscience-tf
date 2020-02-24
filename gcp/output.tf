@@ -15,6 +15,10 @@ output "models_served_under" {
   value = local.deployer_model_subdomain
 }
 
+output "gke_cluster_name" {
+  value = "dotscience-deployer-${random_id.default.hex}"
+}
+
 output "CLI_env_file" {
   value = "source .ds_env.sh"
 }
