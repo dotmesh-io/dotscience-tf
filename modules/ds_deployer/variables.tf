@@ -30,11 +30,6 @@ variable "deployer_token" {
   type        = string
 }
 
-# variable "deployer_model_subdomain" {
-#   description = "Subdomain that you control for the models to use, in a form of '.models.example.com'"
-#   type        = string
-# }
-
 variable "kubernetes_host" {
   description = "Unqiue token that is used for the deployer"
   type        = string
