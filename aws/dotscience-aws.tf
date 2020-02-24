@@ -16,7 +16,7 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
   token                  = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
   load_config_file       = false
-  version                = "~>1.10.0"
+  version                = "~> 1.10.0"
 }
 
 // Terraform plugin for creating random ids
@@ -111,28 +111,10 @@ module "ds_monitoring" {
   dotscience_environment = "aws"
 }
 
-resource "aws_security_group" "all_worker_mgmt" {
-  name_prefix = "all_worker_management"
-  vpc_id      = module.vpc.vpc_id
-  count       = var.create_eks ? 1 : 0
-
-  ingress {
-    from_port = 22
-    to_port   = 22
-    protocol  = "tcp"
-
-    cidr_blocks = [
-      "10.0.0.0/8",
-      "172.16.0.0/12",
-      "192.168.0.0/16",
-    ]
-  }
-}
-
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
   cluster_name    = local.cluster_name
-  subnets         = module.vpc.private_subnets
+  subnets         = module.vpc.public_subnets
   create_eks      = var.create_eks ? true : false
   manage_aws_auth = var.create_eks ? true : false
 
