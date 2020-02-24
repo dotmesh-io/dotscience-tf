@@ -119,12 +119,12 @@ provider "grafana" {
   version = "~> 1.5"
 }
 
-#resource "grafana_data_source" "prometheus" {
-#  count      = var.create_monitoring ? 1 : 0
-#  type       = "prometheus"
-#  name       = "prometheus"
-#  url        = "http://prometheus-server/"
-#  is_default = true
-#
-#  depends_on = [kubernetes_service.grafana_lb]
-#}
+resource "grafana_data_source" "prometheus" {
+  count      = var.create_monitoring ? 1 : 0
+  type       = "prometheus"
+  name       = "prometheus"
+  url        = "http://prometheus-server/"
+  is_default = true
+
+  depends_on = [kubernetes_service.grafana_lb]
+}
