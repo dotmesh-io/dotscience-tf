@@ -1,3 +1,5 @@
+validate:
+	terraform validate
 
 update-gcp-mi:
   # TODO: point to either the latest or the latest tagged release URL
@@ -7,4 +9,4 @@ apply:
 	terraform apply -var-file=inputs.tfvars -auto-approve
 	
 destroy:
-	terraform destroy -var-file=inputs.tfvars -auto-approve -refresh=false
+	terraform destroy -var-file=inputs.tfvars -auto-approve

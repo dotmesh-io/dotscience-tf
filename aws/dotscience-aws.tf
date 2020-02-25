@@ -21,7 +21,7 @@ provider "kubernetes" {
 
 // Terraform plugin for creating random ids
 resource "random_id" "default" {
-  byte_length = 8
+  byte_length = 4
 }
 
 resource "random_id" "deployer_token" {
@@ -43,11 +43,11 @@ locals {
   deployer_token = random_id.deployer_token.hex
   # TODO: fix ingress_host, should be able to handle subdomains for this
   deployer_model_subdomain = var.create_deployer ? join("", [".models-", element(concat(module.ds_deployer.ingress_host, list("")), 0)]) : ""
-  cluster_name   = "eks-${random_id.default.hex}"
   grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
   hub_ami        = var.amis[var.region].Hub
   cpu_runner_ami = var.amis[var.region].CPURunner
   gpu_runner_ami = var.amis[var.region].GPURunner
+  cluster_name             = "${var.environment}-${random_id.default.hex}"
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -133,7 +133,7 @@ resource "aws_security_group" "all_worker_mgmt" {
 
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = local.cluster_name
+  cluster_name    = "eks-${local.cluster_name}"
   subnets         = module.vpc.private_subnets
   create_eks      = var.create_eks ? true : false
   manage_aws_auth = var.create_eks ? true : false

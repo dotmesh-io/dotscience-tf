@@ -59,7 +59,7 @@ module "ds_monitoring" {
 
 resource "google_container_cluster" "dotscience_deployer" {
   count    = var.create_gke ? 1 : 0
-  name     = "dotscience-deployer-${random_id.default.hex}"
+  name     = "${var.environment}-deployer-${random_id.default.hex}"
   location = local.zone
 
   // XXX TODO switch to using a node pool so we don't have to destroy the whole cluster if we change it

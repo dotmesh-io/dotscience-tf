@@ -157,3 +157,9 @@ variable "create_monitoring" {
   type        = string
   default     = "true"
 }
+
+variable "environment" {
+  description = "Set to development for tagging resources with caller_identity"
+  type        = string
+  default     = "ds"
+}
