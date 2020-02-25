@@ -243,16 +243,16 @@ resource "kubernetes_service" "ingress_lb" {
   metadata {
     name = "external-ingress"
     labels = {
-      "app" = "nginx-ingress"
+      "app"       = "nginx-ingress"
       "component" = "controller"
-      "release" = "nginx-ingress"
+      "release"   = "nginx-ingress"
     }
   }
   spec {
     selector = {
-      "app" = "nginx-ingress"
+      "app"       = "nginx-ingress"
       "component" = "controller"
-      "release" = "nginx-ingress"
+      "release"   = "nginx-ingress"
     }
 
     port {
@@ -262,10 +262,11 @@ resource "kubernetes_service" "ingress_lb" {
       protocol    = "TCP"
     }
 
-    type = "LoadBalancer"
+    type         = "LoadBalancer"
+    external_ips = [var.ds_model_ingress_eip]
   }
 }
 
 locals {
-  ingress_host = var.dotscience_environment == "aws" ? kubernetes_service.ingress_lb[*].load_balancer_ingress[0].hostname :  kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
+  ingress_host = kubernetes_service.ingress_lb[*].load_balancer_ingress[*].ip
 }

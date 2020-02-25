@@ -41,13 +41,12 @@ locals {
   hub_hostname   = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
   hub_subnet     = module.vpc.public_subnets[0]
   deployer_token = random_id.deployer_token.hex
-  # TODO: fix ingress_host, should be able to handle subdomains for this
-  deployer_model_subdomain = var.create_deployer ? join("", [".models-", element(concat(module.ds_deployer.ingress_host, list("")), 0)]) : ""
-  grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
-  hub_ami        = var.amis[var.region].Hub
-  cpu_runner_ami = var.amis[var.region].CPURunner
-  gpu_runner_ami = var.amis[var.region].GPURunner
+  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_eip.ds_model_ingress_eip.public_ip, ".", "-"), ".", var.dotscience_domain]) : ""
   cluster_name             = "${var.environment}-${random_id.default.hex}"
+  grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
+  hub_ami                  = var.amis[var.region].Hub
+  cpu_runner_ami           = var.amis[var.region].CPURunner
+  gpu_runner_ami           = var.amis[var.region].GPURunner
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -64,7 +63,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "2.6.0"
 
-  name            = local.cluster_name
+  name            = "vpc-${local.cluster_name}"
   cidr            = var.vpc_network_cidr
   azs             = data.aws_availability_zones.available.names
   private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
@@ -96,6 +95,7 @@ module "ds_deployer" {
   create_deployer        = var.create_deployer && var.create_eks ? 1 : 0
   hub_hostname           = local.hub_hostname
   deployer_token         = local.deployer_token
+  ds_model_ingress_eip   = aws_eip.ds_model_ingress_eip.public_ip
   kubernetes_host        = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
   cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
   kubernetes_token       = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
@@ -134,7 +134,7 @@ resource "aws_security_group" "all_worker_mgmt" {
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
   cluster_name    = "eks-${local.cluster_name}"
-  subnets         = module.vpc.private_subnets
+  subnets         = module.vpc.public_subnets
   create_eks      = var.create_eks ? true : false
   manage_aws_auth = var.create_eks ? true : false
 
@@ -337,6 +337,10 @@ resource "aws_eip" "ds_eip" {
   vpc = true
 }
 
+resource "aws_eip" "ds_model_ingress_eip" {
+  vpc = true
+}
+
 resource "aws_ebs_volume" "ds_hub_volume" {
   availability_zone = data.aws_availability_zone.regional_az.name
   size              = var.hub_volume_size
@@ -421,6 +425,6 @@ resource "aws_kms_key" "ds_kms_key" {
 }
 
 resource "local_file" "ds_env_file" {
-    content     = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
-    filename = ".ds_env.sh"
+  content  = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
+  filename = ".ds_env.sh"
 }
