@@ -1,7 +1,7 @@
 ---
 kind: pipeline
 type: docker
-name: validate
+name: test
 
 steps:
 - name: validate-aws
@@ -20,13 +20,6 @@ steps:
     - cd gcp
     - terraform init
     - terraform validate
-
----
-kind: pipeline
-type: docker
-name: trigger-e2e
-
-steps:
 - name: trigger-e2e-firecracker
   image: arwineap/docker-alpine-toolbox:latest
   environment:
@@ -35,7 +28,7 @@ steps:
   when:
     event: [ push, pull_request ]
     status: success
-  depends_on: [validate-aws, validate-gcp ]
+  depends_on: [ validate-aws, validate-gcp ]
   commands:
     - id="null"
     - try=1
