@@ -24,6 +24,7 @@ kind: pipeline
 type: docker
 name: trigger-e2e
 
+steps:
 - name: trigger-e2e-firecracker
   image: arwineap/docker-alpine-toolbox:latest
   environment:
