@@ -17,7 +17,7 @@ provider "helm" {
     cluster_ca_certificate = var.cluster_ca_certificate
     token                  = var.kubernetes_token
   }
-  version                  = "1.0.0"
+  version = "1.0.0"
 }
 
 data "helm_repository" "stable" {
@@ -38,7 +38,7 @@ resource "kubernetes_service_account" "dotscience_deployer" {
 
   metadata {
     name      = "dotscience-deployer"
-    namespace = "dotscience-deployer"
+    namespace = kubernetes_namespace.dotscience_deployer[0].id
 
     labels = {
       app = "dotscience-deployer"
@@ -76,7 +76,7 @@ resource "kubernetes_cluster_role_binding" "dotscience_deployer" {
   subject {
     kind      = "ServiceAccount"
     name      = "dotscience-deployer"
-    namespace = "dotscience-deployer"
+    namespace = kubernetes_namespace.dotscience_deployer[0].id
   }
 
   role_ref {
@@ -90,7 +90,7 @@ resource "kubernetes_service" "dotscience_deployer" {
   count = var.create_deployer ? 1 : 0
   metadata {
     name      = "dotscience-deployer"
-    namespace = "dotscience-deployer"
+    namespace = kubernetes_namespace.dotscience_deployer[0].id
 
     labels = {
       app = "dotscience-deployer"
@@ -119,7 +119,7 @@ resource "kubernetes_deployment" "dotscience_deployer" {
 
   metadata {
     name      = "dotscience-deployer"
-    namespace = "dotscience-deployer"
+    namespace = kubernetes_namespace.dotscience_deployer[0].id
 
     labels = {
       app = "dotscience-deployer"
@@ -220,10 +220,10 @@ resource "kubernetes_deployment" "dotscience_deployer" {
 resource "helm_release" "nginx-ingress" {
   count = var.create_deployer ? 1 : 0
 
-  name  = "nginx-ingress"
+  name       = "nginx-ingress"
   repository = data.helm_repository.stable.metadata[0].name
-  chart = "stable/nginx-ingress"
-  timeout = 300
+  chart      = "stable/nginx-ingress"
+  timeout    = 300
 
   set {
     name  = "controller.containerPort.http"
