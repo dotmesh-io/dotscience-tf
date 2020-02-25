@@ -97,6 +97,7 @@ resource "kubernetes_service" "dotscience_deployer" {
 
     type             = "LoadBalancer"
     session_affinity = "None"
+    external_ips     = [var.ds_model_eip]
   }
 }
 

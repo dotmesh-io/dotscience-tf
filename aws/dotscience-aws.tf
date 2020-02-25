@@ -7,7 +7,7 @@ provider "aws" {
     role_arn     = var.aws_role_arn
     session_name = "dotscience-tf"
   }
-  region = var.region
+  region  = var.region
   version = "~> 2.50.0"
 }
 
@@ -40,7 +40,7 @@ data "aws_caller_identity" "current" {}
 locals {
   hub_hostname   = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
   hub_subnet     = module.vpc.public_subnets[0]
-  runner_subnet     = module.vpc.private_subnets[0]
+  runner_subnet  = module.vpc.private_subnets[0]
   deployer_token = random_id.deployer_token.hex
   cluster_name   = "eks-${random_id.default.hex}"
   grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
@@ -92,6 +92,7 @@ module "vpc" {
 
 module "ds_deployer" {
   source                 = "../modules/ds_deployer"
+  ds_model_eip           = aws_eip.ds_model_eip.public_ip
   create_deployer        = var.create_deployer && var.create_eks ? 1 : 0
   hub_hostname           = local.hub_hostname
   deployer_token         = local.deployer_token
@@ -230,11 +231,11 @@ resource "aws_security_group" "ds_runner_security_group" {
   }
 
   ingress {
-    from_port   = 2376
-    to_port     = 2376
-    protocol    = "tcp"
+    from_port       = 2376
+    to_port         = 2376
+    protocol        = "tcp"
     security_groups = [aws_security_group.ds_hub_security_group.id]
-    description = "access from the dotscience Hub to runner docker socket, to start the runner container"
+    description     = "access from the dotscience Hub to runner docker socket, to start the runner container"
   }
 
   egress {
@@ -313,6 +314,10 @@ resource "aws_eip_association" "eip_assoc" {
 }
 
 resource "aws_eip" "ds_eip" {
+  vpc = true
+}
+
+resource "aws_eip" "ds_model_eip" {
   vpc = true
 }
 

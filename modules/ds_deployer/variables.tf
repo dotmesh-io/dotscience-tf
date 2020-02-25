@@ -39,3 +39,8 @@ variable "kubernetes_token" {
   description = "Token to auth into the kubernetes cluster"
   type        = string
 }
+
+variable "ds_model_eip" {
+  description = "EIP"
+  type        = string
+}

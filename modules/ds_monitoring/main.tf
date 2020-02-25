@@ -114,8 +114,8 @@ locals {
 }
 
 provider "grafana" {
-  url  = local.grafana_host
-  auth = "${var.grafana_admin_user}:${var.grafana_admin_password}"
+  url     = local.grafana_host
+  auth    = "${var.grafana_admin_user}:${var.grafana_admin_password}"
   version = "~> 1.5"
 }
 
