@@ -10,6 +10,7 @@ steps:
     event: [ push, pull_request ]
   commands:
     - cd aws
+    - terraform init
     - terraform validate
 - name: validate-gcp
   image: hashicorp/terraform:0.12.20
@@ -17,6 +18,7 @@ steps:
     event: [ push, pull_request ]
   commands:
     - cd gcp
+    - terraform init
     - terraform validate
 
 ---
