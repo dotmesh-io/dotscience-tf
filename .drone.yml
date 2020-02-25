@@ -33,6 +33,7 @@ steps:
   when:
     event: [ push, pull_request ]
     status: success
+  depends_on: [validate-aws, validate-gcp ]
   commands:
     - id="null"
     - try=1
