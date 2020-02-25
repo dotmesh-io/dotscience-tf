@@ -1,0 +1,47 @@
+---
+kind: pipeline
+type: docker
+name: validate
+
+steps:
+- name: validate-aws
+  image: hashicorp/terraform:0.12.20
+  when:
+    event: [ push, pull_request ]
+  commands:
+    cd aws
+    terraform validate
+- name: validate-gcp
+  image: hashicorp/terraform:0.12.20
+  when:
+    event: [ push, pull_request ]
+  commands:
+    cd gcp
+    terraform validate
+
+---
+kind: pipeline
+type: docker
+name: trigger-e2e
+
+- name: trigger-e2e-firecracker
+  image: arwineap/docker-alpine-toolbox:latest
+  environment:
+    E2E_TRIGGER_TOKEN:
+      from_secret: e2e_trigger_token_firecracker
+  when:
+    event: [ push, pull_request ]
+    status: success
+  commands:
+    - id="null"
+    - try=1
+    - >
+      while [ \( "$${id}" = "null" \) -a  \( $${try} -le 5 \) ]; do
+        out=$(curl -X POST -F "token=$${E2E_TRIGGER_TOKEN}" -F "ref=master" -F "variables[CI_SERVICE_BEING_TESTED]=dotscience-tf" -F "variables[CI_DOCKER_TAG]=$${DRONE_COMMIT}" -F "variables[DOTMESH_CI_BUILD_REF_NAME]=$${DRONE_COMMIT_BRANCH}" https://gitlab.dotmesh.com/api/v4/projects/dotmesh%2Fe2e-firecracker-sync/trigger/pipeline)
+        echo "RESULT: $${out}"
+        id=$(echo "$${out}" | jq .id)
+        sleep 1;
+        try=$$(( try+1 ))
+      done
+    - test "$${id}" != "null"
+    - echo "Triggered successfully, pipeline - https://gitlab.dotmesh.com/dotmesh/e2e-firecracker-sync/pipelines/$${id}"
