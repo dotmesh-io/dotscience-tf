@@ -158,7 +158,7 @@ resource "google_compute_attached_disk" "default" {
 }
 
 resource "google_compute_firewall" "dotscience_firewall" {
-  name    = "dotscience-firewall-${random_id.default.hex}"
+  name    = "dotscience-ingress-firewall-${random_id.default.hex}"
   network = google_compute_network.dotscience_network.name
 
   allow {
@@ -167,15 +167,31 @@ resource "google_compute_firewall" "dotscience_firewall" {
 
   allow {
     protocol = "tcp"
-    ports    = ["80", "443", "8800", "9800", "22"]
-  }
   // Port 80   - Access to the Dotscience Hub web UI
   // Port 443  - Access to the Dotscience Hub web UI with TLS
   // Port 8800 - Dotscience API gateway
   // Port 9800 - Dotscience webhook relay transponder connections
-  // Port 22   - Provides ssh access to the dotscience runner, for debugging 
+    ports    = ["80", "443", "8800", "9800"]
+  }
 
-  //source_tags = ["web"]
+  source_ranges = [var.hub_ingress_cidr]
+}
+
+resource "google_compute_firewall" "dotscience_ssh_firewall" {
+  name    = "dotscience-ssh-firewall-${random_id.default.hex}"
+  network = google_compute_network.dotscience_network.name
+
+  allow {
+    protocol = "icmp"
+  }
+
+  allow {
+    protocol = "tcp"
+    // Port 22   - Provides ssh access to the dotscience runner, for debugging 
+    ports    = ["22"]
+  }
+
+  source_ranges = [var.ssh_access_cidr]
 }
 
 resource "google_compute_network" "dotscience_network" {

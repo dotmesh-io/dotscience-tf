@@ -81,3 +81,13 @@ variable "create_monitoring" {
   type        = string
   default     = "true"
 }
+
+variable "ssh_access_cidr" {
+  description = "The CIDR block that can connect via SSH"
+  type        = string
+}
+
+variable "hub_ingress_cidr" {
+  description = "The CIDR block for connections coming into the Hub"
+  type        = string
+}
