@@ -41,9 +41,9 @@ locals {
   hub_hostname             = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
   hub_subnet               = module.vpc.public_subnets[0]
   deployer_token           = random_id.deployer_token.hex
-  blah                     = split(".", module.ds_deployer.ingress_host[0])[0]
-  ingress_elb_arn1         = split("-", local.blah)[0]
-  ingress_elb_arn2         = split("-", local.blah)[1]
+  ingress_elb_name         = split(".", module.ds_deployer.ingress_host[0])[0]
+  ingress_elb_arn_type     = split("-", local.ingress_elb_name)[0]
+  ingress_elb_arn_id       = split("-", local.ingress_elb_name)[1]
   deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress.ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
   cluster_name             = "${var.environment}-${random_id.default.hex}"
   grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
@@ -222,7 +222,7 @@ resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
 resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
   listener_arn = aws_globalaccelerator_listener.ds_model_ingress.id
   endpoint_configuration {
-    endpoint_id = join("", concat(["arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/"], [local.ingress_elb_arn1, "/", local.ingress_elb_arn2]))
+    endpoint_id = join("", concat(["arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/"], [local.ingress_elb_arn_type, "/", local.ingress_elb_arn_id]))
     weight      = 100
   }
   health_check_path             = "/"
