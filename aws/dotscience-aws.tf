@@ -44,8 +44,7 @@ locals {
   blah = split(".", module.ds_deployer.ingress_host[0])[0]
   ingress_elb_arn1 = split("-", local.blah)[0]
   ingress_elb_arn2 = split( "-", local.blah)[1]
-  # deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress.ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
-  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace("foo", ".", "-"), ".", var.dotscience_domain]) : ""
+  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress.ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
   cluster_name             = "${var.environment}-${random_id.default.hex}"
   grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
   hub_ami                  = var.amis[var.region].Hub
