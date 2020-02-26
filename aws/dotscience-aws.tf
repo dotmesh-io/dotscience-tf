@@ -7,7 +7,7 @@ provider "aws" {
     role_arn     = var.aws_role_arn
     session_name = "dotscience-tf"
   }
-  region = var.region
+  region  = var.region
   version = "~> 2.50.0"
 }
 
@@ -21,7 +21,7 @@ provider "kubernetes" {
 
 // Terraform plugin for creating random ids
 resource "random_id" "default" {
-  byte_length = 8
+  byte_length = 4
 }
 
 resource "random_id" "deployer_token" {
@@ -38,15 +38,19 @@ data "aws_availability_zone" "regional_az" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  hub_hostname   = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
-  hub_subnet     = module.vpc.public_subnets[0]
-  runner_subnet     = module.vpc.private_subnets[0]
-  deployer_token = random_id.deployer_token.hex
-  cluster_name   = "eks-${random_id.default.hex}"
-  grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
-  hub_ami        = var.amis[var.region].Hub
-  cpu_runner_ami = var.amis[var.region].CPURunner
-  gpu_runner_ami = var.amis[var.region].GPURunner
+  hub_hostname             = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  hub_subnet               = module.vpc.public_subnets[0]
+  runner_subnet            = module.vpc.private_subnets[0]
+  deployer_token           = random_id.deployer_token.hex
+  ingress_elb_name         = split(".", module.ds_deployer.ingress_host[0])[0]
+  ingress_elb_arn_type     = split("-", local.ingress_elb_name)[0]
+  ingress_elb_arn_id       = split("-", local.ingress_elb_name)[1]
+  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress.ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
+  cluster_name             = "${var.environment}-${random_id.default.hex}"
+  grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
+  hub_ami                  = var.amis[var.region].Hub
+  cpu_runner_ami           = var.amis[var.region].CPURunner
+  gpu_runner_ami           = var.amis[var.region].GPURunner
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -63,7 +67,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "2.6.0"
 
-  name            = local.cluster_name
+  name            = "vpc-${local.cluster_name}"
   cidr            = var.vpc_network_cidr
   azs             = data.aws_availability_zones.available.names
   private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
@@ -76,17 +80,17 @@ module "vpc" {
   enable_dns_hostnames = true
 
   tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
+    "kubernetes.io/cluster/eks-${local.cluster_name}" = "shared"
   }
 
   public_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/elb"                      = "1"
+    "kubernetes.io/cluster/eks-${local.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"                          = "1"
   }
 
   private_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/internal-elb"             = "1"
+    "kubernetes.io/cluster/eks-${local.cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb"                 = "1"
   }
 }
 
@@ -98,6 +102,7 @@ module "ds_deployer" {
   kubernetes_host        = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
   cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
   kubernetes_token       = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
+  dotscience_environment = "aws"
 }
 
 module "ds_monitoring" {
@@ -113,7 +118,7 @@ module "ds_monitoring" {
 
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = local.cluster_name
+  cluster_name    = "eks-${local.cluster_name}"
   subnets         = module.vpc.public_subnets
   create_eks      = var.create_eks ? true : false
   manage_aws_auth = var.create_eks ? true : false
@@ -190,6 +195,35 @@ resource "aws_iam_role_policy" "ds_policy" {
 }
 POLICY
 }
+
+resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
+  name            = "Model"
+  ip_address_type = "IPV4"
+  enabled         = true
+}
+
+resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
+  listener_arn = aws_globalaccelerator_listener.ds_model_ingress.id
+  endpoint_configuration {
+    endpoint_id = join("", concat(["arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/"], [local.ingress_elb_arn_type, "/", local.ingress_elb_arn_id]))
+    weight      = 100
+  }
+  health_check_path             = "/"
+  health_check_port             = 80
+  health_check_interval_seconds = 30
+}
+
+resource "aws_globalaccelerator_listener" "ds_model_ingress" {
+  accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress.id
+  client_affinity = "SOURCE_IP"
+  protocol        = "TCP"
+
+  port_range {
+    from_port = 80
+    to_port   = 80
+  }
+}
+
 
 resource "aws_iam_role" "ds_role" {
   name               = "ds-role-${random_id.default.hex}"
@@ -358,9 +392,9 @@ resource "aws_instance" "ds_hub" {
               export GO111MODULE=off
               export GOPATH=/home/ubuntu/go
               go get github.com/spf13/cobra
-              sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/unstable/ds-startup
+              sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/stable/latest/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain "${local.deployer_model_subdomain}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
@@ -371,7 +405,7 @@ resource "aws_instance" "ds_hub" {
     delete_on_termination = true
   }
 
-  tags = {
+  tags = { 
     Name = "ds-hub-${local.cluster_name}-${random_id.default.hex}"
   }
 }
@@ -397,4 +431,9 @@ resource "aws_kms_key" "ds_kms_key" {
   is_enabled          = true
   enable_key_rotation = false
   policy              = data.aws_iam_policy_document.ds_kms_policy.json
+}
+
+resource "local_file" "ds_env_file" {
+  content  = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
+  filename = ".ds_env.sh"
 }

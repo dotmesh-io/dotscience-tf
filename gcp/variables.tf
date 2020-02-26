@@ -1,3 +1,8 @@
+variable "id" {
+  description = "GCP hub hachine image ID"
+  type        = string
+}
+
 variable "region" {
   type    = string
   default = "us-east1"
@@ -80,4 +85,10 @@ variable "create_monitoring" {
   description = "Toggle to create monitoring services for model deployed on the default deployer, requires create_gke and create_deployer to be set to true"
   type        = string
   default     = "true"
+}
+
+variable "environment" {
+  description = "Set to development for tagging resources with caller_identity"
+  type        = string
+  default     = "ds"
 }

@@ -24,20 +24,22 @@ resource "random_id" "deployer_token" {
 }
 
 locals {
-  hub_hostname   = join("", ["hub-", replace(google_compute_address.hub_ipv4_address.address, ".", "-"), ".", var.dotscience_domain])
-  zone           = var.zone
-  deployer_token = random_id.deployer_token.hex
-  grafana_host   = var.create_monitoring && var.create_gke ? module.ds_monitoring.grafana_host : ""
+  hub_hostname             = join("", ["hub-", replace(google_compute_address.hub_ipv4_address.address, ".", "-"), ".", var.dotscience_domain])
+  deployer_model_subdomain = var.create_deployer && var.create_gke ? join("", [".models-", replace(element(concat(module.ds_deployer.ingress_host, list("")), 0), ".", "-"), ".", var.dotscience_domain]) : ""
+  zone                     = var.zone
+  deployer_token           = random_id.deployer_token.hex
+  grafana_host             = var.create_monitoring && var.create_gke ? module.ds_monitoring.grafana_host : ""
 }
 
 module "ds_deployer" {
-  source                 = "../modules/ds_deployer"
-  create_deployer        = var.create_deployer && var.create_gke ? 1 : 0
-  hub_hostname           = local.hub_hostname
-  deployer_token         = local.deployer_token
-  kubernetes_host        = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
-  cluster_ca_certificate = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
-  kubernetes_token       = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
+  source                   = "../modules/ds_deployer"
+  create_deployer          = var.create_deployer && var.create_gke ? 1 : 0
+  hub_hostname             = local.hub_hostname
+  deployer_token           = local.deployer_token
+  kubernetes_host          = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
+  cluster_ca_certificate   = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
+  kubernetes_token         = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
+  dotscience_environment   = "gcp"
 }
 
 module "ds_monitoring" {
@@ -51,15 +53,19 @@ module "ds_monitoring" {
   dotscience_environment = "gcp"
 }
 
+# data "http" "gcp-machine-image" {
+#   url = "https://storage.googleapis.com/dotscience-amis/latest/hub-gcp-image-d552006adc14485a722bf1910b3b2048adab75fa.tfvars.json"
+# }
+
 resource "google_container_cluster" "dotscience_deployer" {
   count    = var.create_gke ? 1 : 0
-  name     = "dotscience-deployer-${random_id.default.hex}"
+  name     = "${var.environment}-deployer-${random_id.default.hex}"
   location = local.zone
 
   // XXX TODO switch to using a node pool so we don't have to destroy the whole cluster if we change it
   // https://www.terraform.io/docs/providers/google/r/container_cluster.html#node_pool
 
-  initial_node_count = 3
+  initial_node_count = 1
 
   node_config {
     machine_type = "n1-standard-2"
@@ -83,14 +89,22 @@ resource "google_compute_instance" "dotscience_hub_vm" {
 
   boot_disk {
     initialize_params {
-      image = "dotscience-images/dotscience-hub-1581267373"
+      image = "dotscience-images/${var.id}"
     }
   }
 
   metadata_startup_script = <<-EOF
 #!/bin/bash -xe
 echo "Starting Dotscience hub"
-/home/ubuntu/startup.sh --admin-password "${var.admin_password}" --cloud gcp --hub-size "${var.hub_volume_size}" --hub-device /dev/sdb --hub-hostname "${local.hub_hostname}" --use-kms=false --license-key="${var.license_key}" --letsencrypt-mode="${var.letsencrypt_mode}" --gcp-runner-project "${var.project}" --gcp-runner-zone "${local.zone}" --gcp-runner-machine-type "${var.runner_machine_type}" --deployer-token "${random_id.deployer_token.hex}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}"
+
+export GO111MODULE=off
+export GOPATH=/home/ubuntu/go
+go get github.com/spf13/cobra
+
+sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/unstable/ds-startup
+sudo chmod +wx /usr/local/bin/ds-startup
+
+ds-startup --admin-password "${var.admin_password}" --cloud gcp --hub-size "${var.hub_volume_size}" --hub-device /dev/sdb --hub-hostname "${local.hub_hostname}" --use-kms=false --license-key="${var.license_key}" --letsencrypt-mode="${var.letsencrypt_mode}" --gcp-runner-project "${var.project}" --gcp-runner-zone "${local.zone}" --gcp-runner-machine-type "${var.runner_machine_type}" --deployer-token "${random_id.deployer_token.hex}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --deployment-ingress-class "nginx" --deployment-subdomain "${local.deployer_model_subdomain}"
 EOF
   network_interface {
     network = google_compute_network.dotscience_network.name
@@ -180,4 +194,9 @@ resource "google_compute_firewall" "dotscience_firewall" {
 
 resource "google_compute_network" "dotscience_network" {
   name = "dotscience-network-${random_id.default.hex}"
+}
+
+resource "local_file" "ds_env_file" {
+    content     = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
+    filename = ".ds_env.sh"
 }
