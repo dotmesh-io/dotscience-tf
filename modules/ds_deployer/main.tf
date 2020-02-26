@@ -8,7 +8,7 @@ provider "kubernetes" {
   cluster_ca_certificate = var.cluster_ca_certificate
   token                  = var.kubernetes_token
   load_config_file       = false
-  version                = "~> 1.9"
+  version                = "~> 1.10.0"
 }
 
 provider "helm" {

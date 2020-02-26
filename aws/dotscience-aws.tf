@@ -16,7 +16,7 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
   token                  = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
   load_config_file       = false
-  version                = "~>1.10.0"
+  version                = "~> 1.10.0"
 }
 
 // Terraform plugin for creating random ids
@@ -40,6 +40,7 @@ data "aws_caller_identity" "current" {}
 locals {
   hub_hostname             = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
   hub_subnet               = module.vpc.public_subnets[0]
+  runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
   ingress_elb_name         = split(".", module.ds_deployer.ingress_host[0])[0]
   ingress_elb_arn_type     = split("-", local.ingress_elb_name)[0]
@@ -115,24 +116,6 @@ module "ds_monitoring" {
   dotscience_environment = "aws"
 }
 
-resource "aws_security_group" "all_worker_mgmt" {
-  name_prefix = "all_worker_management"
-  vpc_id      = module.vpc.vpc_id
-  count       = var.create_eks ? 1 : 0
-
-  ingress {
-    from_port = 22
-    to_port   = 22
-    protocol  = "tcp"
-
-    cidr_blocks = [
-      "10.0.0.0/8",
-      "172.16.0.0/12",
-      "192.168.0.0/16",
-    ]
-  }
-}
-
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
   cluster_name    = "eks-${local.cluster_name}"
@@ -180,7 +163,7 @@ resource "aws_iam_role_policy" "ds_policy" {
             ],
             "Resource": [
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
-                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:subnet/${local.hub_subnet}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:subnet/${local.runner_subnet}",
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:volume/*",
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.ds_hub_security_group.id}",
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.ds_runner_security_group.id}",
@@ -284,8 +267,8 @@ resource "aws_security_group" "ds_runner_security_group" {
     from_port   = 2376
     to_port     = 2376
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "access from the dotscience Hub to runner for receiving tasks via. gRPC"
+    security_groups = [aws_security_group.ds_hub_security_group.id]
+    description = "access from the dotscience Hub to runner docker socket, to start the runner container"
   }
 
   egress {
@@ -350,7 +333,6 @@ resource "aws_security_group" "ds_hub_security_group" {
     description = "Access to the Dotmesh server API"
   }
 
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -412,7 +394,7 @@ resource "aws_instance" "ds_hub" {
               go get github.com/spf13/cobra
               sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/stable/latest/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.hub_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain "${local.deployer_model_subdomain}"
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain "${local.deployer_model_subdomain}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
@@ -423,7 +405,7 @@ resource "aws_instance" "ds_hub" {
     delete_on_termination = true
   }
 
-  tags = {
+  tags = { 
     Name = "ds-hub-${local.cluster_name}-${random_id.default.hex}"
   }
 }
