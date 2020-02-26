@@ -7,7 +7,7 @@ provider "aws" {
     role_arn     = var.aws_role_arn
     session_name = "dotscience-tf"
   }
-  region = var.region
+  region  = var.region
   version = "~> 2.50.0"
 }
 
@@ -38,10 +38,14 @@ data "aws_availability_zone" "regional_az" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  hub_hostname   = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
-  hub_subnet     = module.vpc.public_subnets[0]
-  deployer_token = random_id.deployer_token.hex
-  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_eip.ds_model_ingress_eip.public_ip, ".", "-"), ".", var.dotscience_domain]) : ""
+  hub_hostname     = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  hub_subnet       = module.vpc.public_subnets[0]
+  deployer_token   = random_id.deployer_token.hex
+  blah = split(".", module.ds_deployer.ingress_host[0])[0]
+  ingress_elb_arn1 = split("-", local.blah)[0]
+  ingress_elb_arn2 = split( "-", local.blah)[1]
+  # deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress.ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
+  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace("foo", ".", "-"), ".", var.dotscience_domain]) : ""
   cluster_name             = "${var.environment}-${random_id.default.hex}"
   grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
   hub_ami                  = var.amis[var.region].Hub
@@ -76,17 +80,17 @@ module "vpc" {
   enable_dns_hostnames = true
 
   tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
+    "kubernetes.io/cluster/eks-${local.cluster_name}" = "shared"
   }
 
   public_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/elb"                      = "1"
+    "kubernetes.io/cluster/eks-${local.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"                          = "1"
   }
 
   private_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/internal-elb"             = "1"
+    "kubernetes.io/cluster/eks-${local.cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb"                 = "1"
   }
 }
 
@@ -95,7 +99,6 @@ module "ds_deployer" {
   create_deployer        = var.create_deployer && var.create_eks ? 1 : 0
   hub_hostname           = local.hub_hostname
   deployer_token         = local.deployer_token
-  ds_model_ingress_eip   = aws_eip.ds_model_ingress_eip.public_ip
   kubernetes_host        = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
   cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
   kubernetes_token       = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
@@ -210,6 +213,32 @@ resource "aws_iam_role_policy" "ds_policy" {
 }
 POLICY
 }
+
+resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
+  name            = "Model"
+  ip_address_type = "IPV4"
+  enabled         = true
+}
+
+resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
+  listener_arn = aws_globalaccelerator_listener.ds_model_ingress.id
+  endpoint_configuration {
+    endpoint_id = join("", concat(["arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/"], [local.ingress_elb_arn1,"/", local.ingress_elb_arn2]))
+    weight      = 100
+  }
+}
+
+resource "aws_globalaccelerator_listener" "ds_model_ingress" {
+  accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress.id
+  client_affinity = "SOURCE_IP"
+  protocol        = "TCP"
+
+  port_range {
+    from_port = 80
+    to_port   = 80
+  }
+}
+
 
 resource "aws_iam_role" "ds_role" {
   name               = "ds-role-${random_id.default.hex}"
@@ -334,10 +363,6 @@ resource "aws_eip_association" "eip_assoc" {
 }
 
 resource "aws_eip" "ds_eip" {
-  vpc = true
-}
-
-resource "aws_eip" "ds_model_ingress_eip" {
   vpc = true
 }
 

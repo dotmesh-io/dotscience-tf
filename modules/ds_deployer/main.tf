@@ -247,6 +247,9 @@ resource "kubernetes_service" "ingress_lb" {
       "component" = "controller"
       "release"   = "nginx-ingress"
     }
+    annotations = {
+      "service.beta.kubernetes.io/aws-load-balancer-type"            = "nlb"
+    }
   }
   spec {
     selector = {
@@ -263,10 +266,9 @@ resource "kubernetes_service" "ingress_lb" {
     }
 
     type         = "LoadBalancer"
-    external_ips = [var.ds_model_ingress_eip]
   }
 }
 
 locals {
-  ingress_host = kubernetes_service.ingress_lb[*].load_balancer_ingress[*].ip
+  ingress_host = var.dotscience_environment == "aws"  ?  kubernetes_service.ingress_lb[*].load_balancer_ingress[0].hostname : kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
 }

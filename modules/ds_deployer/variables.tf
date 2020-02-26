@@ -44,9 +44,3 @@ variable "kubernetes_token" {
   description = "Token to auth into the kubernetes cluster"
   type        = string
 }
-
-variable "ds_model_ingress_eip" {
-  description = "AWS external IP for model ingress"
-  type        = string
-  default     = ""
-}
