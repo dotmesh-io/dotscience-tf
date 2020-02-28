@@ -200,7 +200,7 @@ POLICY
 resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
   name            = "Model"
   ip_address_type = "IPV4"
-  enabled         = true
+  enabled         = var.create_deployer && var.create_eks
 }
 
 resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
@@ -218,6 +218,7 @@ resource "aws_globalaccelerator_listener" "ds_model_ingress" {
   accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress.id
   client_affinity = "SOURCE_IP"
   protocol        = "TCP"
+  enabled         = var.create_deployer && var.create_eks
 
   port_range {
     from_port = 80
