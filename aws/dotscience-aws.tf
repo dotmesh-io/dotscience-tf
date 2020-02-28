@@ -137,7 +137,6 @@ module "eks" {
     {
       name                          = "worker-group-1"
       instance_type                 = var.eks_cluster_worker_instance_type
-      additional_userdata           = "echo foo bar"
       asg_desired_capacity          = var.eks_cluster_worker_count
       additional_security_group_ids = []
     },
