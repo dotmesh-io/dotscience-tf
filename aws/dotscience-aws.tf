@@ -42,9 +42,9 @@ locals {
   hub_subnet               = module.vpc.public_subnets[0]
   runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
-  ingress_elb_name         = split(".", module.ds_deployer.ingress_host[0])[0]
-  ingress_elb_arn_type     = split("-", local.ingress_elb_name)[0]
-  ingress_elb_arn_id       = split("-", local.ingress_elb_name)[1]
+  ingress_elb_name         = var.create_deployer && var.create_eks ? split(".", module.ds_deployer.ingress_host[0])[0] : ""
+  ingress_elb_arn_type     = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[0] : ""
+  ingress_elb_arn_id       = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[1] : ""
   deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress.ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
   cluster_name             = "${var.environment}-${random_id.default.hex}"
   grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
