@@ -42,10 +42,10 @@ locals {
   hub_subnet               = module.vpc.public_subnets[0]
   runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
-  ingress_elb_name         = split(".", module.ds_deployer.ingress_host[0])[0]
-  ingress_elb_arn_type     = split("-", local.ingress_elb_name)[0]
-  ingress_elb_arn_id       = split("-", local.ingress_elb_name)[1]
-  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress.ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
+  ingress_elb_name         = var.create_deployer && var.create_eks ? split(".", module.ds_deployer.ingress_host[0])[0] : ""
+  ingress_elb_arn_type     = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[0] : ""
+  ingress_elb_arn_id       = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[1] : ""
+  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress[0].ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
   cluster_name             = "${var.environment}-${random_id.default.hex}"
   grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
   hub_ami                  = var.amis[var.region].Hub
@@ -137,7 +137,6 @@ module "eks" {
     {
       name                          = "worker-group-1"
       instance_type                 = var.eks_cluster_worker_instance_type
-      additional_userdata           = "echo foo bar"
       asg_desired_capacity          = var.eks_cluster_worker_count
       additional_security_group_ids = []
     },
@@ -201,11 +200,12 @@ POLICY
 resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
   name            = "Model"
   ip_address_type = "IPV4"
-  enabled         = true
+  enabled         = var.create_deployer && var.create_eks ? true : false
+  count           = var.create_deployer && var.create_eks ? 1 : 0
 }
 
 resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
-  listener_arn = aws_globalaccelerator_listener.ds_model_ingress.id
+  listener_arn = aws_globalaccelerator_listener.ds_model_ingress[0].id
   endpoint_configuration {
     endpoint_id = join("", concat(["arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/"], [local.ingress_elb_arn_type, "/", local.ingress_elb_arn_id]))
     weight      = 100
@@ -213,12 +213,14 @@ resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
   health_check_path             = "/"
   health_check_port             = 80
   health_check_interval_seconds = 30
+  count                         = var.create_deployer && var.create_eks ? 1 : 0
 }
 
 resource "aws_globalaccelerator_listener" "ds_model_ingress" {
-  accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress.id
+  accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress[0].id
   client_affinity = "SOURCE_IP"
   protocol        = "TCP"
+  count           = var.create_deployer && var.create_eks ? 1 : 0
 
   port_range {
     from_port = 80
