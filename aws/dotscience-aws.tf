@@ -205,7 +205,7 @@ resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
 }
 
 resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
-  listener_arn = aws_globalaccelerator_listener.ds_model_ingress.id
+  listener_arn = aws_globalaccelerator_listener.ds_model_ingress[0].id
   endpoint_configuration {
     endpoint_id = join("", concat(["arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/"], [local.ingress_elb_arn_type, "/", local.ingress_elb_arn_id]))
     weight      = 100
