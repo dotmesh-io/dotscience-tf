@@ -45,7 +45,7 @@ locals {
   ingress_elb_name         = var.create_deployer && var.create_eks ? split(".", module.ds_deployer.ingress_host[0])[0] : ""
   ingress_elb_arn_type     = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[0] : ""
   ingress_elb_arn_id       = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[1] : ""
-  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress.ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
+  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress[0].ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
   cluster_name             = "${var.environment}-${random_id.default.hex}"
   grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
   hub_ami                  = var.amis[var.region].Hub
@@ -200,7 +200,7 @@ POLICY
 resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
   name            = "Model"
   ip_address_type = "IPV4"
-  enabled         = var.create_deployer && var.create_eks
+  enabled         = var.create_deployer && var.create_eks ? true : false
   count           = var.create_deployer && var.create_eks ? 1 : 0
 }
 
@@ -217,7 +217,7 @@ resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
 }
 
 resource "aws_globalaccelerator_listener" "ds_model_ingress" {
-  accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress.id
+  accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress[0].id
   client_affinity = "SOURCE_IP"
   protocol        = "TCP"
   count           = var.create_deployer && var.create_eks ? 1 : 0
