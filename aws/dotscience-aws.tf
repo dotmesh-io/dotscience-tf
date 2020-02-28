@@ -201,7 +201,6 @@ resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
   name            = "Model"
   ip_address_type = "IPV4"
   enabled         = var.create_deployer && var.create_eks
-  count           = var.create_deployer && var.create_eks ? 1 : 0
 }
 
 resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
@@ -213,14 +212,12 @@ resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
   health_check_path             = "/"
   health_check_port             = 80
   health_check_interval_seconds = 30
-  count                         = var.create_deployer && var.create_eks ? 1 : 0
 }
 
 resource "aws_globalaccelerator_listener" "ds_model_ingress" {
   accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress.id
   client_affinity = "SOURCE_IP"
   protocol        = "TCP"
-  count           = var.create_deployer && var.create_eks ? 1 : 0
 
   port_range {
     from_port = 80
