@@ -298,6 +298,22 @@ resource "aws_security_group" "ds_hub_security_group" {
   }
 
   ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [var.letsencrypt_ingress_cidr]
+    description = "Access to the Dotscience Hub web UI for Lets Encrypt to do a HTTP challenge"
+  }
+
+   ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.letsencrypt_ingress_cidr]
+    description = "Access to the Dotscience Hub web UI for Lets Encrypt to do a HTTP challenge. TODO - This may not be required"
+  }
+
+  ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"

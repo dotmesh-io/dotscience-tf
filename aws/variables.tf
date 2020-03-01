@@ -5,12 +5,12 @@ variable "dotscience_aws_version" {
 
 variable "region" {
   description = "AWS region in which Dotscience will be provisioned in"
-  default = "us-east-1"
+  default     = "us-east-1"
 }
 
 variable "aws_role_arn" {
   description = "AWS role ARN for Terraform to use to assume Role into. Format arn:aws:iam::account-id:role/role-name"
-  type = string
+  type        = string
 }
 
 variable "key_name" {
@@ -37,6 +37,12 @@ variable "ssh_access_cidr" {
 variable "hub_ingress_cidr" {
   description = "The CIDR block for connections coming into the Hub"
   type        = string
+}
+
+variable "letsencrypt_ingress_cidr" {
+  description = "The CIDR block for connections coming into the Hub from https://letsencrypt.org/"
+  type        = string
+  default     = "0.0.0.0/0"
 }
 
 variable "hub_volume_size" {
@@ -139,19 +145,19 @@ variable "webrelay_secret" {
 }
 
 variable "create_eks" {
-  description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
+  description = "Toggle to create an EKS cluster for the dotscience model deployments"
   type        = string
   default     = "true"
 }
 
 variable "create_deployer" {
-  description = "Toggle to create a default dotscience deployer on the above mentioned GKE cluster, requires create_gke to be set to true"
+  description = "Toggle to create a default dotscience deployer on the above mentioned EKS cluster, requires create_eks to be set to true"
   type        = string
   default     = "true"
 }
 
 variable "create_monitoring" {
-  description = "Toggle to create monitoring services for model deployed on the default deployer, requires create_gke and create_deployer to be set to true"
+  description = "Toggle to create monitoring services for model deployed on the default deployer, requires create_eks and create_deployer to be set to true"
   type        = string
   default     = "true"
 }
