@@ -268,11 +268,11 @@ resource "aws_security_group" "ds_runner_security_group" {
   }
 
   ingress {
-    from_port   = 2376
-    to_port     = 2376
-    protocol    = "tcp"
+    from_port       = 2376
+    to_port         = 2376
+    protocol        = "tcp"
     security_groups = [aws_security_group.ds_hub_security_group.id]
-    description = "access from the dotscience Hub to runner docker socket, to start the runner container"
+    description     = "access from the dotscience Hub to runner docker socket, to start the runner container"
   }
 
   egress {
@@ -284,81 +284,102 @@ resource "aws_security_group" "ds_runner_security_group" {
   }
 }
 
+resource "aws_security_group_rule" "hub_http_ui_browser" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = [var.hub_ingress_cidr]
+  description       = "Access to the Dotscience Hub web UI for the browser"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_http_ui_lets_encrypt" {
+  count             = var.letsencrypt_ingress_cidr == var.hub_ingress_cidr ? 0 : 1
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = [var.letsencrypt_ingress_cidr]
+  description       = "Access to the Dotscience Hub for lets encrypt"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_https_ui_browser" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = [var.hub_ingress_cidr]
+  description       = "Access to the Dotscience Hub web UI for the browser"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_https_ui_lets_encrypt" {
+  count             = var.letsencrypt_ingress_cidr == var.hub_ingress_cidr ? 0 : 1
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = [var.letsencrypt_ingress_cidr]
+  description       = "Access to the Dotscience Hub for lets encrypt"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_ssh" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = [var.ssh_access_cidr]
+  description       = "provides ssh access to the dotscience Hub, for debugging"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_gateway_api" {
+  type              = "ingress"
+  from_port         = 8800
+  to_port           = 8800
+  protocol          = "tcp"
+  cidr_blocks       = [var.hub_ingress_cidr]
+  description       = "Access to the Dotscience API gateway"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_transponder" {
+  type              = "ingress"
+  from_port         = 9800
+  to_port           = 9800
+  protocol          = "tcp"
+  cidr_blocks       = [var.hub_ingress_cidr]
+  description       = "Dotscience webhook relay transponder connections"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_dotmesh_api" {
+  type              = "ingress"
+  from_port         = 32607
+  to_port           = 32607
+  protocol          = "tcp"
+  cidr_blocks       = [var.hub_ingress_cidr]
+  description       = "Access to the Dotmesh server API"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_dotmesh_outgoing" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "Outgoing connections from the hub to the internet"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
 resource "aws_security_group" "ds_hub_security_group" {
   name        = "ds-hub-sg-${random_id.default.hex}"
   description = "SG for Hub and Runner EC2 Instances"
   vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = [var.hub_ingress_cidr]
-    description = "Access to the Dotscience Hub web UI"
-  }
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = [var.letsencrypt_ingress_cidr]
-    description = "Access to the Dotscience Hub web UI for Lets Encrypt to do a HTTP challenge"
-  }
-
-   ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [var.letsencrypt_ingress_cidr]
-    description = "Access to the Dotscience Hub web UI for Lets Encrypt to do a HTTP challenge. TODO - This may not be required"
-  }
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.ssh_access_cidr]
-    description = "provides ssh access to the dotscience Hub, for debugging"
-  }
-
-  ingress {
-    from_port   = 8800
-    to_port     = 8800
-    protocol    = "tcp"
-    cidr_blocks = [var.hub_ingress_cidr]
-    description = "Dotscience API gateway"
-  }
-
-  ingress {
-    from_port   = 9800
-    to_port     = 9800
-    protocol    = "tcp"
-    cidr_blocks = [var.hub_ingress_cidr]
-    description = "Dotscience webhook relay transponder connections"
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [var.hub_ingress_cidr]
-    description = "Access to the Dotscience Hub web UI with TLS"
-  }
-
-  ingress {
-    from_port   = 32607
-    to_port     = 32607
-    protocol    = "tcp"
-    cidr_blocks = [var.hub_ingress_cidr]
-    description = "Access to the Dotmesh server API"
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 }
 
 resource "aws_eip_association" "eip_assoc" {
@@ -425,7 +446,7 @@ resource "aws_instance" "ds_hub" {
     delete_on_termination = true
   }
 
-  tags = { 
+  tags = {
     Name = "ds-hub-${local.cluster_name}-${random_id.default.hex}"
   }
 }
