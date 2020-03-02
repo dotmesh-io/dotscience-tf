@@ -124,6 +124,8 @@ module "eks" {
   manage_aws_auth         = var.create_eks ? true : false
   cluster_create_timeout  = "30m"
   cluster_delete_timeout  = "30m"
+  cluster_endpoint_private_access = true
+  cluster_endpoint_public_access = true
 
   tags = {
     Environment = local.cluster_name

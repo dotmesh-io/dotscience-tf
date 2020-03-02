@@ -1,6 +1,5 @@
 variable "dotscience_aws_version" {
   description = "Version information for this build that released this Terraform configuration"
-  type        = string
 }
 
 variable "region" {
@@ -10,38 +9,31 @@ variable "region" {
 
 variable "aws_role_arn" {
   description = "AWS role ARN for Terraform to use to assume Role into. Format arn:aws:iam::account-id:role/role-name"
-  type        = string
 }
 
 variable "key_name" {
   description = "Name of an existing EC2 KeyPair to enable SSH access to the instances"
-  type        = string
 }
 
 variable "admin_password" {
   description = "The login password for the initial admin user"
-  type        = string
 }
 
 variable "vpc_network_cidr" {
   description = "The CIDR block for the entire VPC network"
-  type        = string
   default     = "10.0.0.0/16"
 }
 
 variable "ssh_access_cidr" {
   description = "The CIDR block that can connect via SSH"
-  type        = string
 }
 
 variable "hub_ingress_cidr" {
   description = "The CIDR block for connections coming into the Hub"
-  type        = string
 }
 
 variable "letsencrypt_ingress_cidr" {
   description = "The CIDR block for connections coming into the Hub from https://letsencrypt.org/"
-  type        = string
   default     = "0.0.0.0/0"
 }
 
@@ -52,25 +44,21 @@ variable "hub_volume_size" {
 }
 variable "hub_instance_type" {
   description = "Hub EC2 instance type"
-  type        = string
   default     = "m5.2xlarge"
 }
 
 variable "grafana_host" {
   description = "The hostname of the Grafana server, used for Dotscience Hub monitoring"
-  type        = string
   default     = ""
 }
 
 variable "grafana_admin_user" {
   description = "The password for the Grafana admin user, used for Dotscience Hub monitoring"
-  type        = string
   default     = "admin"
 }
 
 variable "grafana_admin_password" {
   description = "The password for the Grafana admin user, used for Dotscience Hub monitoring"
-  type        = string
 }
 
 variable "eks_cluster_worker_instance_type" {
@@ -79,6 +67,11 @@ variable "eks_cluster_worker_instance_type" {
 
 variable "eks_cluster_worker_count" {
   default = 2
+}
+
+variable "eks_public_access_cidrs" {
+  description = "List of CIDR blocks which can access the Amazon EKS public API server endpoint."
+  default = "0.0.0.0/0"
 }
 
 variable "amis" {
@@ -91,13 +84,11 @@ variable "letsencrypt_mode" {
 
 variable "license_key" {
   description = "Dotscience License Key"
-  type        = string
 }
 
 variable "map_accounts" {
   description = "Additional AWS account numbers to add to the aws-auth configmap."
   type        = list(string)
-
   default = [
   ]
 }
@@ -128,42 +119,35 @@ variable "map_users" {
 
 variable "dotscience_domain" {
   description = "Domain name that you control, in which to deploy dotscience to, eg. dotscience.example-corp.com"
-  type        = string
   default     = "your.dotscience.net"
 }
 
 variable "webrelay_key" {
   description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type        = string
   default     = "b06e261f-074e-47b5-bfbe-4d6d94ccd6f4"
 }
 
 variable "webrelay_secret" {
   description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type        = string
   default     = "4rAW5vq0D7uN"
 }
 
 variable "create_eks" {
   description = "Toggle to create an EKS cluster for the dotscience model deployments"
-  type        = string
   default     = "true"
 }
 
 variable "create_deployer" {
   description = "Toggle to create a default dotscience deployer on the above mentioned EKS cluster, requires create_eks to be set to true"
-  type        = string
   default     = "true"
 }
 
 variable "create_monitoring" {
   description = "Toggle to create monitoring services for model deployed on the default deployer, requires create_eks and create_deployer to be set to true"
-  type        = string
   default     = "true"
 }
 
 variable "environment" {
   description = "Set to development for tagging resources with caller_identity"
-  type        = string
-  default     = "ds"
+  default = "ds"
 }
