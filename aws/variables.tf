@@ -123,10 +123,8 @@ variable "dotscience_domain" {
 }
 
 variable "model_deployment_domain" {
-  description = "Domain name that you control, into which model deployments go into. Currently defaults to an test domain that is maintained by Dotscience"
-  default     = "dotscience-poc.com"
+  description = "Domain name that you control the name servers for, into which model deployments go into. See docs https://docs.dotscience.com/install/tf-aws/"
 }
-
 
 variable "webrelay_key" {
   description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
