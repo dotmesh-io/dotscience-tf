@@ -42,10 +42,8 @@ locals {
   hub_subnet               = module.vpc.public_subnets[0]
   runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
-  ingress_elb_name         = var.create_deployer && var.create_eks ? split(".", module.ds_deployer.ingress_host[0])[0] : ""
-  ingress_elb_arn_type     = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[0] : ""
-  ingress_elb_arn_id       = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[1] : ""
-  deployer_model_subdomain = var.create_deployer && var.create_eks ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress[0].ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : ""
+  ingress_elb_name         = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
+  deployer_model_subdomain = ".models-${local.cluster_name}.dotscience-poc.com" # Replace with your subdomain, Note: not valid with "apex" domains, e.g. example.com
   cluster_name             = "${var.environment}-${random_id.default.hex}"
   grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
   hub_ami                  = var.amis[var.region].Hub
@@ -117,15 +115,15 @@ module "ds_monitoring" {
 }
 
 module "eks" {
-  source                  = "terraform-aws-modules/eks/aws"
-  cluster_name            = "eks-${local.cluster_name}"
-  subnets                 = module.vpc.public_subnets
-  create_eks              = var.create_eks ? true : false
-  manage_aws_auth         = var.create_eks ? true : false
-  cluster_create_timeout  = "30m"
-  cluster_delete_timeout  = "30m"
+  source                          = "terraform-aws-modules/eks/aws"
+  cluster_name                    = "eks-${local.cluster_name}"
+  subnets                         = module.vpc.public_subnets
+  create_eks                      = var.create_eks ? true : false
+  manage_aws_auth                 = var.create_eks ? true : false
+  cluster_create_timeout          = "30m"
+  cluster_delete_timeout          = "30m"
   cluster_endpoint_private_access = true
-  cluster_endpoint_public_access = true
+  cluster_endpoint_public_access  = true
 
   tags = {
     Environment = local.cluster_name
@@ -198,38 +196,6 @@ resource "aws_iam_role_policy" "ds_policy" {
 }
 POLICY
 }
-
-resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
-  name            = "Model"
-  ip_address_type = "IPV4"
-  enabled         = var.create_deployer && var.create_eks ? true : false
-  count           = var.create_deployer && var.create_eks ? 1 : 0
-}
-
-resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
-  listener_arn = aws_globalaccelerator_listener.ds_model_ingress[0].id
-  endpoint_configuration {
-    endpoint_id = join("", concat(["arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/"], [local.ingress_elb_arn_type, "/", local.ingress_elb_arn_id]))
-    weight      = 100
-  }
-  health_check_path             = "/"
-  health_check_port             = 80
-  health_check_interval_seconds = 30
-  count                         = var.create_deployer && var.create_eks ? 1 : 0
-}
-
-resource "aws_globalaccelerator_listener" "ds_model_ingress" {
-  accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress[0].id
-  client_affinity = "SOURCE_IP"
-  protocol        = "TCP"
-  count           = var.create_deployer && var.create_eks ? 1 : 0
-
-  port_range {
-    from_port = 80
-    to_port   = 80
-  }
-}
-
 
 resource "aws_iam_role" "ds_role" {
   name               = "ds-role-${random_id.default.hex}"
@@ -479,4 +445,16 @@ resource "aws_kms_key" "ds_kms_key" {
 resource "local_file" "ds_env_file" {
   content  = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
   filename = ".ds_env.sh"
+}
+
+resource "aws_route53_zone" "model_deployments" {
+  name = "dotscience-poc.com"
+}
+
+resource "aws_route53_record" "model_deployments" {
+  zone_id = aws_route53_zone.model_deployments.zone_id
+  name    = "*${local.deployer_model_subdomain}"
+  type    = "CNAME"
+  ttl     = "60"
+  records = [local.ingress_elb_name]
 }
