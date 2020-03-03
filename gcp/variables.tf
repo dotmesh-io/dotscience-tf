@@ -1,3 +1,8 @@
+variable "id" {
+  description = "GCP hub hachine image ID"
+  type        = string
+}
+
 variable "region" {
   type    = string
   default = "us-east1"
@@ -90,4 +95,10 @@ variable "ssh_access_cidr" {
 variable "hub_ingress_cidr" {
   description = "The CIDR block for connections coming into the Hub"
   type        = string
+}
+
+variable "environment" {
+  description = "Set to development for tagging resources with caller_identity"
+  type        = string
+  default     = "ds"
 }

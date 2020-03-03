@@ -1,6 +1,9 @@
 */*.tfvars
-.terraform
-.terraform.*
-terraform.tfstate.backup
-terraform.tfstate
+# Local .terraform directories
+**/.terraform/*
+# .tfstate files
+*.tfstate
+*.tfstate.*
 kubeconfig_*
+.ds_env.sh
+.assume_role.sh

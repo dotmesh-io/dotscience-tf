@@ -1,3 +1,8 @@
+variable "dotscience_environment" {
+  description = "Dotscience environment such as 'gcp', 'aws'"
+  type        = string
+}
+
 variable hub_hostname {
   description = "Hostname of the Dotscience Hub, the deployer uses this to connect to the Hub"
   type        = string

@@ -7,7 +7,7 @@ provider "aws" {
     role_arn     = var.aws_role_arn
     session_name = "dotscience-tf"
   }
-  region = var.region
+  region  = var.region
   version = "~> 2.50.0"
 }
 
@@ -21,7 +21,7 @@ provider "kubernetes" {
 
 // Terraform plugin for creating random ids
 resource "random_id" "default" {
-  byte_length = 8
+  byte_length = 4
 }
 
 resource "random_id" "deployer_token" {
@@ -38,15 +38,17 @@ data "aws_availability_zone" "regional_az" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  hub_hostname   = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
-  hub_subnet     = module.vpc.public_subnets[0]
-  runner_subnet     = module.vpc.private_subnets[0]
-  deployer_token = random_id.deployer_token.hex
-  cluster_name   = "eks-${random_id.default.hex}"
-  grafana_host   = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
-  hub_ami        = var.amis[var.region].Hub
-  cpu_runner_ami = var.amis[var.region].CPURunner
-  gpu_runner_ami = var.amis[var.region].GPURunner
+  hub_hostname             = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  hub_subnet               = module.vpc.public_subnets[0]
+  runner_subnet            = module.vpc.private_subnets[0]
+  deployer_token           = random_id.deployer_token.hex
+  ingress_elb_name         = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
+  deployer_model_subdomain = ".model-${local.cluster_name}.${var.model_deployment_domain}" # Replace with your subdomain, Note: not valid with "apex" domains, e.g. example.com
+  cluster_name             = "${var.environment}-${random_id.default.hex}"
+  grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
+  hub_ami                  = var.amis[var.region].Hub
+  cpu_runner_ami           = var.amis[var.region].CPURunner
+  gpu_runner_ami           = var.amis[var.region].GPURunner
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -63,7 +65,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "2.6.0"
 
-  name            = local.cluster_name
+  name            = "vpc-${local.cluster_name}"
   cidr            = var.vpc_network_cidr
   azs             = data.aws_availability_zones.available.names
   private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
@@ -76,17 +78,17 @@ module "vpc" {
   enable_dns_hostnames = true
 
   tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
+    "kubernetes.io/cluster/eks-${local.cluster_name}" = "shared"
   }
 
   public_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/elb"                      = "1"
+    "kubernetes.io/cluster/eks-${local.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"                          = "1"
   }
 
   private_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/internal-elb"             = "1"
+    "kubernetes.io/cluster/eks-${local.cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb"                 = "1"
   }
 }
 
@@ -98,6 +100,7 @@ module "ds_deployer" {
   kubernetes_host        = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)
   cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
   kubernetes_token       = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
+  dotscience_environment = "aws"
 }
 
 module "ds_monitoring" {
@@ -112,11 +115,15 @@ module "ds_monitoring" {
 }
 
 module "eks" {
-  source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = local.cluster_name
-  subnets         = module.vpc.public_subnets
-  create_eks      = var.create_eks ? true : false
-  manage_aws_auth = var.create_eks ? true : false
+  source                          = "terraform-aws-modules/eks/aws"
+  cluster_name                    = "eks-${local.cluster_name}"
+  subnets                         = module.vpc.public_subnets
+  create_eks                      = var.create_eks ? true : false
+  manage_aws_auth                 = var.create_eks ? true : false
+  cluster_create_timeout          = "30m"
+  cluster_delete_timeout          = "30m"
+  cluster_endpoint_private_access = true
+  cluster_endpoint_public_access  = true
 
   tags = {
     Environment = local.cluster_name
@@ -130,7 +137,6 @@ module "eks" {
     {
       name                          = "worker-group-1"
       instance_type                 = var.eks_cluster_worker_instance_type
-      additional_userdata           = "echo foo bar"
       asg_desired_capacity          = var.eks_cluster_worker_count
       additional_security_group_ids = []
     },
@@ -230,11 +236,11 @@ resource "aws_security_group" "ds_runner_security_group" {
   }
 
   ingress {
-    from_port   = 2376
-    to_port     = 2376
-    protocol    = "tcp"
+    from_port       = 2376
+    to_port         = 2376
+    protocol        = "tcp"
     security_groups = [aws_security_group.ds_hub_security_group.id]
-    description = "access from the dotscience Hub to runner docker socket, to start the runner container"
+    description     = "access from the dotscience Hub to runner docker socket, to start the runner container"
   }
 
   egress {
@@ -246,65 +252,102 @@ resource "aws_security_group" "ds_runner_security_group" {
   }
 }
 
+resource "aws_security_group_rule" "hub_http_ui_browser" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = [var.hub_ingress_cidr]
+  description       = "Access to the Dotscience Hub web UI for the browser"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_http_ui_lets_encrypt" {
+  count             = var.letsencrypt_ingress_cidr == var.hub_ingress_cidr ? 0 : 1
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = [var.letsencrypt_ingress_cidr]
+  description       = "Access to the Dotscience Hub for lets encrypt"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_https_ui_browser" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = [var.hub_ingress_cidr]
+  description       = "Access to the Dotscience Hub web UI for the browser"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_https_ui_lets_encrypt" {
+  count             = var.letsencrypt_ingress_cidr == var.hub_ingress_cidr ? 0 : 1
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = [var.letsencrypt_ingress_cidr]
+  description       = "Access to the Dotscience Hub for lets encrypt"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_ssh" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = [var.ssh_access_cidr]
+  description       = "provides ssh access to the dotscience Hub, for debugging"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_gateway_api" {
+  type              = "ingress"
+  from_port         = 8800
+  to_port           = 8800
+  protocol          = "tcp"
+  cidr_blocks       = [var.hub_ingress_cidr]
+  description       = "Access to the Dotscience API gateway"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_transponder" {
+  type              = "ingress"
+  from_port         = 9800
+  to_port           = 9800
+  protocol          = "tcp"
+  cidr_blocks       = [var.hub_ingress_cidr]
+  description       = "Dotscience webhook relay transponder connections"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_dotmesh_api" {
+  type              = "ingress"
+  from_port         = 32607
+  to_port           = 32607
+  protocol          = "tcp"
+  cidr_blocks       = [var.hub_ingress_cidr]
+  description       = "Access to the Dotmesh server API"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_dotmesh_outgoing" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "Outgoing connections from the hub to the internet"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
 resource "aws_security_group" "ds_hub_security_group" {
   name        = "ds-hub-sg-${random_id.default.hex}"
   description = "SG for Hub and Runner EC2 Instances"
   vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = [var.hub_ingress_cidr]
-    description = "Access to the Dotscience Hub web UI"
-  }
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.ssh_access_cidr]
-    description = "provides ssh access to the dotscience Hub, for debugging"
-  }
-
-  ingress {
-    from_port   = 8800
-    to_port     = 8800
-    protocol    = "tcp"
-    cidr_blocks = [var.hub_ingress_cidr]
-    description = "Dotscience API gateway"
-  }
-
-  ingress {
-    from_port   = 9800
-    to_port     = 9800
-    protocol    = "tcp"
-    cidr_blocks = [var.hub_ingress_cidr]
-    description = "Dotscience webhook relay transponder connections"
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [var.hub_ingress_cidr]
-    description = "Access to the Dotscience Hub web UI with TLS"
-  }
-
-  ingress {
-    from_port   = 32607
-    to_port     = 32607
-    protocol    = "tcp"
-    cidr_blocks = [var.hub_ingress_cidr]
-    description = "Access to the Dotmesh server API"
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 }
 
 resource "aws_eip_association" "eip_assoc" {
@@ -358,9 +401,9 @@ resource "aws_instance" "ds_hub" {
               export GO111MODULE=off
               export GOPATH=/home/ubuntu/go
               go get github.com/spf13/cobra
-              sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/unstable/ds-startup
+              sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/stable/latest/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}"
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain "${local.deployer_model_subdomain}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
@@ -397,4 +440,21 @@ resource "aws_kms_key" "ds_kms_key" {
   is_enabled          = true
   enable_key_rotation = false
   policy              = data.aws_iam_policy_document.ds_kms_policy.json
+}
+
+resource "local_file" "ds_env_file" {
+  content  = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
+  filename = ".ds_env.sh"
+}
+
+resource "aws_route53_zone" "model_deployments" {
+  name = var.model_deployment_domain
+}
+
+resource "aws_route53_record" "model_deployments" {
+  zone_id = aws_route53_zone.model_deployments.zone_id
+  name    = "*${local.deployer_model_subdomain}"
+  type    = "CNAME"
+  ttl     = "60"
+  records = [local.ingress_elb_name]
 }

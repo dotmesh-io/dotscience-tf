@@ -64,6 +64,7 @@ resource "helm_release" "prometheus" {
   name       = "prometheus"
   repository = data.helm_repository.stable.metadata[0].name
   chart      = "stable/prometheus"
+  timeout = 300
 
   set {
     name  = "server.global.scrape_interval"
@@ -86,8 +87,8 @@ resource "helm_release" "grafana" {
 
   name       = "grafana"
   repository = data.helm_repository.stable.metadata[0].name
-
   chart = "stable/grafana"
+  timeout = 300
 
   depends_on = [
     kubernetes_secret.grafana_admin

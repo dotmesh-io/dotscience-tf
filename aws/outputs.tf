@@ -9,3 +9,11 @@ output "DotscienceHub_URL" {
 output "Grafana_URL" {
   value = local.grafana_host
 }
+
+output "CLI_env_file" {
+  value = "source .ds_env.sh"
+}
+
+output "Deployer_Name_Servers" {
+  value = aws_route53_zone.model_deployments.name_servers
+}
