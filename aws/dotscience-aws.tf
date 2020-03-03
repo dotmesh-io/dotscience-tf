@@ -43,7 +43,7 @@ locals {
   runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
   ingress_elb_name         = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
-  deployer_model_subdomain = ".models-${local.cluster_name}.dotscience-poc.com" # Replace with your subdomain, Note: not valid with "apex" domains, e.g. example.com
+  deployer_model_subdomain = ".models-${local.cluster_name}.${var.model_deployment_domain}" # Replace with your subdomain, Note: not valid with "apex" domains, e.g. example.com
   cluster_name             = "${var.environment}-${random_id.default.hex}"
   grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
   hub_ami                  = var.amis[var.region].Hub

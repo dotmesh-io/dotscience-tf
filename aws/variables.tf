@@ -118,9 +118,15 @@ variable "map_users" {
 }
 
 variable "dotscience_domain" {
-  description = "Domain name that you control, in which to deploy dotscience to, eg. dotscience.example-corp.com"
+  description = "Domain name that you control, in which to deploy dotscience Hub to, eg. dotscience.example-corp.com. Currently defaults to a wildcard DNS server that is maintained by Dotscience"
   default     = "your.dotscience.net"
 }
+
+variable "model_deployment_domain" {
+  description = "Domain name that you control, into which model deployments go into. Currently defaults to an test domain that is maintained by Dotscience"
+  default     = "dotscience-poc.com"
+}
+
 
 variable "webrelay_key" {
   description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
@@ -151,3 +157,4 @@ variable "environment" {
   description = "Set to development for tagging resources with caller_identity"
   default = "ds"
 }
+
