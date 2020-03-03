@@ -115,15 +115,16 @@ module "ds_monitoring" {
 }
 
 module "eks" {
-  source                          = "terraform-aws-modules/eks/aws"
-  cluster_name                    = "eks-${local.cluster_name}"
-  subnets                         = module.vpc.public_subnets
-  create_eks                      = var.create_eks ? true : false
-  manage_aws_auth                 = var.create_eks ? true : false
-  cluster_create_timeout          = "30m"
-  cluster_delete_timeout          = "30m"
-  cluster_endpoint_private_access = true
-  cluster_endpoint_public_access  = true
+  source                               = "terraform-aws-modules/eks/aws"
+  cluster_name                         = "eks-${local.cluster_name}"
+  subnets                              = module.vpc.public_subnets
+  create_eks                           = var.create_eks ? true : false
+  manage_aws_auth                      = var.create_eks ? true : false
+  cluster_create_timeout               = "30m"
+  cluster_delete_timeout               = "30m"
+  cluster_endpoint_private_access      = true
+  cluster_endpoint_public_access       = true
+  cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
 
   tags = {
     Environment = local.cluster_name

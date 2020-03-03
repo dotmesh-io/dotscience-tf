@@ -71,7 +71,7 @@ variable "eks_cluster_worker_count" {
 
 variable "eks_public_access_cidrs" {
   description = "List of CIDR blocks which can access the Amazon EKS public API server endpoint."
-  default = "0.0.0.0/0"
+  default     = "0.0.0.0/0"
 }
 
 variable "amis" {
@@ -141,6 +141,13 @@ variable "create_eks" {
   default     = "true"
 }
 
+variable "cluster_endpoint_public_access_cidrs" {
+  description = "List of CIDR blocks which can access the Amazon EKS public API server endpoint for model deployments"
+  default = [
+    "0.0.0.0/0"
+  ]
+}
+
 variable "create_deployer" {
   description = "Toggle to create a default dotscience deployer on the above mentioned EKS cluster, requires create_eks to be set to true"
   default     = "true"
@@ -153,6 +160,6 @@ variable "create_monitoring" {
 
 variable "environment" {
   description = "Set to development for tagging resources with caller_identity"
-  default = "ds"
+  default     = "ds"
 }
 
