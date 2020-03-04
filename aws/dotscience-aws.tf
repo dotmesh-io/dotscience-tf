@@ -38,17 +38,17 @@ data "aws_availability_zone" "regional_az" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  hub_hostname             = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
-  hub_subnet               = module.vpc.public_subnets[0]
-  runner_subnet            = module.vpc.private_subnets[0]
-  deployer_token           = random_id.deployer_token.hex
-  ingress_elb_name         = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
-  deployer_model_subdomain = ".model-${local.cluster_name}.${var.model_deployment_domain}" # Replace with your subdomain, Note: not valid with "apex" domains, e.g. example.com
-  cluster_name             = "${var.environment}-${random_id.default.hex}"
-  grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
-  hub_ami                  = var.amis[var.region].Hub
-  cpu_runner_ami           = var.amis[var.region].CPURunner
-  gpu_runner_ami           = var.amis[var.region].GPURunner
+  hub_hostname               = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  hub_subnet                 = module.vpc.public_subnets[0]
+  runner_subnet              = module.vpc.private_subnets[0]
+  deployer_token             = random_id.deployer_token.hex
+  ingress_elb_name           = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
+  deployer_model_subdomain   = "model-${local.cluster_name}.${var.model_deployment_domain}"
+  cluster_name               = "${var.environment}-${random_id.default.hex}"
+  grafana_host               = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
+  hub_ami                    = var.amis[var.region].Hub
+  cpu_runner_ami             = var.amis[var.region].CPURunner
+  gpu_runner_ami             = var.amis[var.region].GPURunner
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -404,7 +404,7 @@ resource "aws_instance" "ds_hub" {
               go get github.com/spf13/cobra
               sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/stable/latest/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain "${local.deployer_model_subdomain}"
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
@@ -449,12 +449,12 @@ resource "local_file" "ds_env_file" {
 }
 
 resource "aws_route53_zone" "model_deployments" {
-  name = var.model_deployment_domain
+  name = local.deployer_model_subdomain
 }
 
 resource "aws_route53_record" "model_deployments" {
   zone_id = aws_route53_zone.model_deployments.zone_id
-  name    = "*${local.deployer_model_subdomain}"
+  name    = "*.${local.deployer_model_subdomain}"
   type    = "CNAME"
   ttl     = "60"
   records = [local.ingress_elb_name]
