@@ -448,14 +448,26 @@ resource "local_file" "ds_env_file" {
   filename = ".ds_env.sh"
 }
 
-resource "aws_route53_zone" "model_deployments" {
+resource "aws_route53_zone" "model_deployments_subdomain" {
   name = local.deployer_model_subdomain
 }
 
-resource "aws_route53_record" "model_deployments" {
-  zone_id = aws_route53_zone.model_deployments.zone_id
+resource "aws_route53_record" "model_deployments_subdomain" {
+  zone_id = aws_route53_zone.model_deployments_subdomain.zone_id
   name    = "*.${local.deployer_model_subdomain}"
   type    = "CNAME"
   ttl     = "60"
   records = [local.ingress_elb_name]
+}
+
+data "aws_route53_zone" "model_deployments_domain" {
+  name         = var.model_deployment_domain
+}
+
+resource "aws_route53_record" "model_deployments_domain" {
+  zone_id = data.aws_route53_zone.model_deployments_domain.zone_id
+  name    = local.deployer_model_subdomain
+  type    = "NS"
+  ttl     = "60"
+  records = aws_route53_zone.model_deployments_subdomain.name_servers
 }
