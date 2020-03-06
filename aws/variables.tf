@@ -78,6 +78,10 @@ variable "amis" {
   type = map
 }
 
+variable "ds_startup_up_script_version" {
+  default = "0.8.9"
+}
+
 variable "letsencrypt_mode" {
   type = string
 }
