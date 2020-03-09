@@ -25,7 +25,7 @@ resource "random_id" "deployer_token" {
 
 locals {
   hub_hostname             = join("", ["hub-", replace(google_compute_address.hub_ipv4_address.address, ".", "-"), ".", var.dotscience_domain])
-  deployer_model_subdomain = var.create_deployer && var.create_gke ? join("", [".models-", replace(element(concat(module.ds_deployer.ingress_host, list("")), 0), ".", "-"), ".", var.dotscience_domain]) : ""
+  deployer_model_subdomain = var.create_deployer && var.create_gke ? join("", [".models-", replace(element(concat(module.ds_deployer.ingress_host, list("")), 0), ".", "-"), ".", var.dotscience_domain]) : "" 
   zone                     = var.zone
   deployer_token           = random_id.deployer_token.hex
   grafana_host             = var.create_monitoring && var.create_gke ? module.ds_monitoring.grafana_host : ""
