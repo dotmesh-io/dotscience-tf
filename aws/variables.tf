@@ -82,8 +82,12 @@ variable "ds_startup_up_script_version" {
   default = "0.8.9"
 }
 
-variable "letsencrypt_mode" {
-  type = string
+variable "tls_mode" {
+  description = "TLS setup mode for running Dotscience over HTTP"
+  validation {
+    condition     = var.tls_mode == "letsencrypt" || var.tls_mode == "aws_managed" 
+    error_message = "Value for tls_mode must be set to either 'letsencrypt' or 'aws_managed'. \nWe currently support only two modes - using letsencrypt for TLS fetching automated certs on a wildcard DNS domain or AWS Cert manager."
+  }
 }
 
 variable "license_key" {
