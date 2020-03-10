@@ -38,17 +38,17 @@ data "aws_availability_zone" "regional_az" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  hub_hostname               = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
-  hub_subnet                 = module.vpc.public_subnets[0]
-  runner_subnet              = module.vpc.private_subnets[0]
-  deployer_token             = random_id.deployer_token.hex
-  ingress_elb_name           = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
-  deployer_model_subdomain   = "model-${local.cluster_name}.${var.model_deployment_domain}"
-  cluster_name               = "${var.environment}-${random_id.default.hex}"
-  grafana_host               = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
-  hub_ami                    = var.amis[var.region].Hub
-  cpu_runner_ami             = var.amis[var.region].CPURunner
-  gpu_runner_ami             = var.amis[var.region].GPURunner
+  hub_hostname             = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  hub_subnet               = module.vpc.public_subnets[0]
+  runner_subnet            = module.vpc.private_subnets[0]
+  deployer_token           = random_id.deployer_token.hex
+  ingress_elb_name         = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
+  deployer_model_subdomain = "model-${local.cluster_name}.${var.model_deployment_domain}"
+  cluster_name             = "${var.environment}-${random_id.default.hex}"
+  grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
+  hub_ami                  = var.amis[var.region].Hub
+  cpu_runner_ami           = var.amis[var.region].CPURunner
+  gpu_runner_ami           = var.amis[var.region].GPURunner
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -449,11 +449,13 @@ resource "local_file" "ds_env_file" {
 }
 
 resource "aws_route53_zone" "model_deployments_subdomain" {
-  name = local.deployer_model_subdomain
+  count = var.create_deployer && var.create_eks ? 1 : 0
+  name  = local.deployer_model_subdomain
 }
 
 resource "aws_route53_record" "model_deployments_subdomain" {
-  zone_id = aws_route53_zone.model_deployments_subdomain.zone_id
+  count   = var.create_deployer && var.create_eks ? 1 : 0
+  zone_id = aws_route53_zone.model_deployments_subdomain[0].zone_id
   name    = "*.${local.deployer_model_subdomain}"
   type    = "CNAME"
   ttl     = "60"
@@ -461,13 +463,15 @@ resource "aws_route53_record" "model_deployments_subdomain" {
 }
 
 data "aws_route53_zone" "model_deployments_domain" {
-  name         = var.model_deployment_domain
+  count = var.create_deployer && var.create_eks ? 1 : 0
+  name  = var.model_deployment_domain
 }
 
-resource "aws_route53_record" "model_deployments_domain" {
-  zone_id = data.aws_route53_zone.model_deployments_domain.zone_id
+resource "aws_route53_record" "model_deployments_domain_ns" {
+  count   = var.create_deployer && var.create_eks ? 1 : 0
+  zone_id = data.aws_route53_zone.model_deployments_domain[0].zone_id
   name    = local.deployer_model_subdomain
   type    = "NS"
   ttl     = "60"
-  records = aws_route53_zone.model_deployments_subdomain.name_servers
+  records = aws_route53_zone.model_deployments_subdomain[0].name_servers
 }
