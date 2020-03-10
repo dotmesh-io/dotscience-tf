@@ -39,17 +39,19 @@ data "aws_availability_zone" "regional_az" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  hub_hostname               = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
-  hub_subnet                 = module.vpc.public_subnets[0]
-  runner_subnet              = module.vpc.private_subnets[0]
-  deployer_token             = random_id.deployer_token.hex
-  ingress_elb_name           = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
-  deployer_model_subdomain   = "model-${local.cluster_name}.${var.model_deployment_domain}"
-  cluster_name               = "${var.environment}-${random_id.default.hex}"
-  grafana_host               = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
-  hub_ami                    = var.amis[var.region].Hub
-  cpu_runner_ami             = var.amis[var.region].CPURunner
-  gpu_runner_ami             = var.amis[var.region].GPURunner
+  ds_hub_subdomain         = "hub-${local.cluster_name}.${var.model_deployment_domain}"
+  hub_hostname             = var.tls_mode == "letsencrypt" ? join("", [replace(aws_eip.ds_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : local.ds_hub_subdomain
+  le_mode                  = var.tls_mode == "letsencrypt" ? "production" : "off"
+  hub_subnet               = module.vpc.public_subnets[0]
+  runner_subnet            = module.vpc.private_subnets[0]
+  deployer_token           = random_id.deployer_token.hex
+  ingress_elb_name         = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
+  deployer_model_subdomain = "model-${local.cluster_name}.${var.model_deployment_domain}"
+  cluster_name             = "${var.environment}-${random_id.default.hex}"
+  grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
+  hub_ami                  = var.amis[var.region].Hub
+  cpu_runner_ami           = var.amis[var.region].CPURunner
+  gpu_runner_ami           = var.amis[var.region].GPURunner
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -353,12 +355,71 @@ resource "aws_security_group" "ds_hub_security_group" {
 }
 
 resource "aws_eip_association" "eip_assoc" {
+  count         = var.tls_mode == "letsencrypt" ? 1 : 0
   instance_id   = aws_instance.ds_hub.id
-  allocation_id = aws_eip.ds_eip.id
+  allocation_id = aws_eip.ds_eip[0].id
 }
 
 resource "aws_eip" "ds_eip" {
-  vpc = true
+  count = var.tls_mode == "letsencrypt" ? 1 : 0
+  vpc   = true
+}
+
+resource "aws_elb" "ds_elb" {
+  count = var.tls_mode == "aws_managed" ? 1 : 0
+
+  name                        = "ds-elb-${random_id.default.hex}"
+  subnets                     = module.vpc.public_subnets
+  security_groups             = [aws_security_group.ds_hub_security_group.id]
+  cross_zone_load_balancing   = false
+  idle_timeout                = 60
+  connection_draining         = false
+  connection_draining_timeout = 300
+  internal                    = false
+
+  listener {
+    instance_port      = 8800
+    instance_protocol  = "tcp"
+    lb_port            = 8800
+    lb_protocol        = "tcp"
+    ssl_certificate_id = ""
+  }
+
+  listener {
+    instance_port      = 443
+    instance_protocol  = "https"
+    lb_port            = 443
+    lb_protocol        = "https"
+    ssl_certificate_id = aws_acm_certificate_validation.cert[0].certificate_arn
+  }
+
+  listener {
+    instance_port      = 32607
+    instance_protocol  = "tcp"
+    lb_port            = 32607
+    lb_protocol        = "tcp"
+    ssl_certificate_id = ""
+  }
+
+  listener {
+    instance_port      = 80
+    instance_protocol  = "tcp"
+    lb_port            = 80
+    lb_protocol        = "tcp"
+    ssl_certificate_id = ""
+  }
+
+  health_check {
+    healthy_threshold   = 3
+    unhealthy_threshold = 5
+    interval            = 30
+    target              = "HTTP:80/"
+    timeout             = 5
+  }
+
+  depends_on = [
+    aws_security_group.ds_hub_security_group
+  ]
 }
 
 resource "aws_ebs_volume" "ds_hub_volume" {
@@ -405,7 +466,7 @@ resource "aws_instance" "ds_hub" {
               go get github.com/spf13/cobra
               sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/stable/0.9.2/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}"
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${local.le_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
@@ -449,26 +510,86 @@ resource "local_file" "ds_env_file" {
   filename = ".ds_env.sh"
 }
 
+data "aws_route53_zone" "ds_domain" {
+  name = var.model_deployment_domain
+}
+
 resource "aws_route53_zone" "model_deployments_subdomain" {
-  name = local.deployer_model_subdomain
+  count = var.create_deployer && var.create_eks ? 1 : 0
+  name  = local.deployer_model_subdomain
 }
 
 resource "aws_route53_record" "model_deployments_subdomain" {
-  zone_id = aws_route53_zone.model_deployments_subdomain.zone_id
+  count   = var.create_deployer && var.create_eks ? 1 : 0
+  zone_id = aws_route53_zone.model_deployments_subdomain[0].zone_id
   name    = "*.${local.deployer_model_subdomain}"
   type    = "CNAME"
   ttl     = "60"
   records = [local.ingress_elb_name]
 }
 
-data "aws_route53_zone" "model_deployments_domain" {
-  name         = var.model_deployment_domain
-}
-
-resource "aws_route53_record" "model_deployments_domain" {
-  zone_id = data.aws_route53_zone.model_deployments_domain.zone_id
+resource "aws_route53_record" "model_deployments_domain_ns" {
+  count   = var.create_deployer && var.create_eks ? 1 : 0
+  zone_id = data.aws_route53_zone.ds_domain.zone_id
   name    = local.deployer_model_subdomain
   type    = "NS"
   ttl     = "60"
-  records = aws_route53_zone.model_deployments_subdomain.name_servers
+  records = aws_route53_zone.model_deployments_subdomain[0].name_servers
 }
+
+resource "aws_route53_zone" "ds_hub_subdomain" {
+  count = var.tls_mode == "aws_managed" ? 1 : 0
+  name  = local.ds_hub_subdomain
+}
+
+resource "aws_route53_record" "ds_hub_subdomain_ns" {
+  count   = var.tls_mode == "aws_managed" ? 1 : 0
+  zone_id = data.aws_route53_zone.ds_domain.zone_id
+  name    = local.ds_hub_subdomain
+  type    = "NS"
+  ttl     = "60"
+  records = aws_route53_zone.ds_hub_subdomain[0].name_servers
+}
+
+resource "aws_route53_record" "ds_hub_subdomain" {
+  count   = var.tls_mode == "aws_managed" ? 1 : 0
+  zone_id = aws_route53_zone.ds_hub_subdomain[0].zone_id
+  name    = local.ds_hub_subdomain
+  type    = "A"
+  alias {
+    name                   = aws_elb.ds_elb[0].dns_name
+    zone_id                = aws_elb.ds_elb[0].zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_acm_certificate" "cert" {
+  count             = var.tls_mode == "aws_managed" ? 1 : 0
+  domain_name       = local.hub_hostname
+  validation_method = "DNS"
+
+  tags = {
+    Environment = "ds-hub-${local.cluster_name}"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "cert_validation" {
+  count   = var.tls_mode == "aws_managed" ? 1 : 0
+  name    = aws_acm_certificate.cert[0].domain_validation_options.0.resource_record_name
+  type    = aws_acm_certificate.cert[0].domain_validation_options.0.resource_record_type
+  zone_id = aws_route53_zone.ds_hub_subdomain[0].id
+  records = [aws_acm_certificate.cert[0].domain_validation_options.0.resource_record_value]
+  ttl     = 60
+}
+
+resource "aws_acm_certificate_validation" "cert" {
+  count                   = var.tls_mode == "aws_managed" ? 1 : 0
+  certificate_arn         = aws_acm_certificate.cert[0].arn
+  validation_record_fqdns = [aws_route53_record.cert_validation[0].fqdn]
+}
+
+
