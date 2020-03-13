@@ -167,3 +167,7 @@ variable "environment" {
   default     = "ds"
 }
 
+variable "workstation_ingress_cidr" {
+  description = "The CIDR block for connections coming into the Hub from the user's work station"
+  default = "0.0.0.0/0"
+}
