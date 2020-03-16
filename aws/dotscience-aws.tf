@@ -254,66 +254,100 @@ resource "aws_security_group" "ds_runner_security_group" {
   }
 }
 
+resource "aws_security_group_rule" "hub_http_ui_browser" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = var.letsencrypt_ingress_cidr != "" ? distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr]) : distinct([var.vpc_network_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr])
+  description       = "Access to the Dotscience Hub web UI for the browser"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_https_ui_browser" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = var.letsencrypt_ingress_cidr != "" ? distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr]) : distinct([var.vpc_network_cidr, var.workstation_ingress_cidr])
+  description       = "Access to the Dotscience Hub web UI for the browser"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_ssh" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = [var.ssh_access_cidr]
+  description       = "provides ssh access to the dotscience Hub, for debugging"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_gateway_api" {
+  type                     = "ingress"
+  from_port                = 8800
+  to_port                  = 8800
+  protocol                 = "tcp"
+  description              = "Access to the Dotscience API gateway"
+  source_security_group_id = aws_security_group.ds_runner_security_group.id
+  security_group_id        = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_gateway_api_runner_sg" {
+  type              = "ingress"
+  from_port         = 8800
+  to_port           = 8800
+  protocol          = "tcp"
+  cidr_blocks       = distinct([var.vpc_network_cidr, var.workstation_ingress_cidr, "0.0.0.0/0"]) #This needs inbound 0.0.0.0/0 for runners to connect in.  https://github.com/dotmesh-io/dotscience-tf/issues/44
+  description       = "Access to the Dotscience API gateway"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_transponder" {
+  type              = "ingress"
+  from_port         = 9800
+  to_port           = 9800
+  protocol          = "tcp"
+  cidr_blocks       = [var.vpc_network_cidr, "0.0.0.0/0"] #This needs inbound 0.0.0.0/0 for runners to connect in.  https://github.com/dotmesh-io/dotscience-tf/issues/44
+  description       = "Dotscience webhook relay transponder connections"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_transponder_sg" {
+  type                     = "ingress"
+  from_port                = 9800
+  to_port                  = 9800
+  protocol                 = "tcp"
+  description              = "Dotscience webhook relay transponder connections"
+  source_security_group_id = aws_security_group.ds_runner_security_group.id
+  security_group_id        = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_dotmesh_api" {
+  type              = "ingress"
+  from_port         = 32607
+  to_port           = 32607
+  protocol          = "tcp"
+  cidr_blocks       = [var.vpc_network_cidr]
+  description       = "Access to the Dotmesh server API"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
+resource "aws_security_group_rule" "hub_dotmesh_outgoing" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "Outgoing connections from the hub to the internet"
+  security_group_id = aws_security_group.ds_hub_security_group.id
+}
+
 resource "aws_security_group" "ds_hub_security_group" {
   name        = "ds-hub-sg-${random_id.default.hex}"
   description = "SG for Hub and Runner EC2 Instances"
   vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr])
-    description = "Access to the Dotscience Hub web UI for the browser"
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr])
-    description = "Access to the Dotscience Hub web UI for the browser"
-  }
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.ssh_access_cidr]
-    description = "provides ssh access to the dotscience Hub, for debugging"
-  }
-
-  ingress {
-    from_port   = 8800
-    to_port     = 8800
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_network_cidr, var.workstation_ingress_cidr]
-    description = "Access to the Dotscience API gateway"
-  }
-
-  ingress {
-    from_port   = 9800
-    to_port     = 9800
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_network_cidr]
-    description = "Dotscience webhook relay transponder connections"
-  }
-
-  ingress {
-    from_port   = 32607
-    to_port     = 32607
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_network_cidr]
-    description = "Access to the Dotmesh server API"
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Outgoing connections from the hub to the internet"
-  }
 }
 
 resource "aws_eip_association" "eip_assoc" {
@@ -355,7 +389,6 @@ resource "aws_instance" "ds_hub" {
               set -euo pipefail
               echo "Dotscience hub"
               INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
-              HUB_PRIVATE_IP=$( curl -s http://169.254.169.254/latest/meta-data/local-ipv4 )
               echo "Attaching volume ${aws_ebs_volume.ds_hub_volume.id} to $INSTANCE_ID"
               while ! aws ec2 attach-volume --volume-id "${aws_ebs_volume.ds_hub_volume.id}" --instance-id $INSTANCE_ID --region "${var.region}" --device /dev/sdf 
               do
@@ -367,7 +400,7 @@ resource "aws_instance" "ds_hub" {
               echo "Starting Dotscience hub"  
               sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/unstable/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}" --pb-runner-host $HUB_PRIVATE_IP
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
