@@ -33,7 +33,7 @@ variable "hub_ingress_cidr" {
 }
 
 variable "letsencrypt_ingress_cidr" {
-  description = "The CIDR block for connections coming into the Hub from https://letsencrypt.org/"
+  description = "The CIDR block for connections coming into the Hub from https://letsencrypt.org/. Let's encrypt servers do not have a whitelist IP set. Set value to '' to restrict all access."
   default     = "0.0.0.0/0"
 }
 
@@ -167,3 +167,7 @@ variable "environment" {
   default     = "ds"
 }
 
+variable "workstation_ingress_cidr" {
+  description = "The CIDR block for connections coming into the Hub from the user's work station"
+  default = "0.0.0.0/0"
+}
