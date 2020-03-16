@@ -49,6 +49,7 @@ locals {
   hub_ami                  = var.amis[var.region].Hub
   cpu_runner_ami           = var.amis[var.region].CPURunner
   gpu_runner_ami           = var.amis[var.region].GPURunner
+  nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -253,101 +254,66 @@ resource "aws_security_group" "ds_runner_security_group" {
     description = "access to download images, dependencies, and self-updates of the runner"
   }
 }
-
-resource "aws_security_group_rule" "hub_http_ui_browser" {
-  type              = "ingress"
-  from_port         = 80
-  to_port           = 80
-  protocol          = "tcp"
-  cidr_blocks       = var.letsencrypt_ingress_cidr != "" ? distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr]) : distinct([var.vpc_network_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr])
-  description       = "Access to the Dotscience Hub web UI for the browser"
-  security_group_id = aws_security_group.ds_hub_security_group.id
-}
-
-resource "aws_security_group_rule" "hub_https_ui_browser" {
-  type              = "ingress"
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = var.letsencrypt_ingress_cidr != "" ? distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr]) : distinct([var.vpc_network_cidr, var.workstation_ingress_cidr])
-  description       = "Access to the Dotscience Hub web UI for the browser"
-  security_group_id = aws_security_group.ds_hub_security_group.id
-}
-
-resource "aws_security_group_rule" "hub_ssh" {
-  type              = "ingress"
-  from_port         = 22
-  to_port           = 22
-  protocol          = "tcp"
-  cidr_blocks       = [var.ssh_access_cidr]
-  description       = "provides ssh access to the dotscience Hub, for debugging"
-  security_group_id = aws_security_group.ds_hub_security_group.id
-}
-
-resource "aws_security_group_rule" "hub_gateway_api" {
-  type                     = "ingress"
-  from_port                = 8800
-  to_port                  = 8800
-  protocol                 = "tcp"
-  description              = "Access to the Dotscience API gateway"
-  source_security_group_id = aws_security_group.ds_runner_security_group.id
-  security_group_id        = aws_security_group.ds_hub_security_group.id
-}
-
-resource "aws_security_group_rule" "hub_gateway_api_runner_sg" {
-  type              = "ingress"
-  from_port         = 8800
-  to_port           = 8800
-  protocol          = "tcp"
-  cidr_blocks       = distinct([var.vpc_network_cidr, var.workstation_ingress_cidr, "0.0.0.0/0"]) #This needs inbound 0.0.0.0/0 for runners to connect in.  https://github.com/dotmesh-io/dotscience-tf/issues/44
-  description       = "Access to the Dotscience API gateway"
-  security_group_id = aws_security_group.ds_hub_security_group.id
-}
-
-resource "aws_security_group_rule" "hub_transponder" {
-  type              = "ingress"
-  from_port         = 9800
-  to_port           = 9800
-  protocol          = "tcp"
-  cidr_blocks       = [var.vpc_network_cidr, "0.0.0.0/0"] #This needs inbound 0.0.0.0/0 for runners to connect in.  https://github.com/dotmesh-io/dotscience-tf/issues/44
-  description       = "Dotscience webhook relay transponder connections"
-  security_group_id = aws_security_group.ds_hub_security_group.id
-}
-
-resource "aws_security_group_rule" "hub_transponder_sg" {
-  type                     = "ingress"
-  from_port                = 9800
-  to_port                  = 9800
-  protocol                 = "tcp"
-  description              = "Dotscience webhook relay transponder connections"
-  source_security_group_id = aws_security_group.ds_runner_security_group.id
-  security_group_id        = aws_security_group.ds_hub_security_group.id
-}
-
-resource "aws_security_group_rule" "hub_dotmesh_api" {
-  type              = "ingress"
-  from_port         = 32607
-  to_port           = 32607
-  protocol          = "tcp"
-  cidr_blocks       = [var.vpc_network_cidr]
-  description       = "Access to the Dotmesh server API"
-  security_group_id = aws_security_group.ds_hub_security_group.id
-}
-
-resource "aws_security_group_rule" "hub_dotmesh_outgoing" {
-  type              = "egress"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
-  cidr_blocks       = ["0.0.0.0/0"]
-  description       = "Outgoing connections from the hub to the internet"
-  security_group_id = aws_security_group.ds_hub_security_group.id
-}
-
 resource "aws_security_group" "ds_hub_security_group" {
   name        = "ds-hub-sg-${random_id.default.hex}"
   description = "SG for Hub and Runner EC2 Instances"
   vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = var.letsencrypt_ingress_cidr != "" ? distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr]) : distinct([var.vpc_network_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr])
+    description = "Access to the Dotscience Hub web UI for the browser"
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = var.letsencrypt_ingress_cidr != "" ? distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr]) : distinct([var.vpc_network_cidr, var.workstation_ingress_cidr])
+    description = "Access to the Dotscience Hub web UI for the browser"
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.ssh_access_cidr]
+    description = "provides ssh access to the dotscience Hub, for debugging"
+  }
+
+  ingress {
+    from_port   = 8800
+    to_port     = 8800
+    protocol    = "tcp"
+    cidr_blocks = concat(local.nat_cidrs, distinct([var.vpc_network_cidr, var.workstation_ingress_cidr]))
+    description = "Access to the Dotscience API gateway"
+  }
+
+  ingress {
+    from_port   = 9800
+    to_port     = 9800
+    protocol    = "tcp"
+    cidr_blocks = concat(local.nat_cidrs, distinct([var.vpc_network_cidr, var.workstation_ingress_cidr]))
+    description = "Dotscience webhook relay transponder connections"
+  }
+
+  ingress {
+    from_port   = 32607
+    to_port     = 32607
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_network_cidr]
+    description = "Access to the Dotmesh server API"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Outgoing connections from the hub to the internet"
+  }
 }
 
 resource "aws_eip_association" "eip_assoc" {
