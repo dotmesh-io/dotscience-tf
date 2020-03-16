@@ -49,6 +49,7 @@ locals {
   hub_ami                  = var.amis[var.region].Hub
   cpu_runner_ami           = var.amis[var.region].CPURunner
   gpu_runner_ami           = var.amis[var.region].GPURunner
+  nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -299,7 +300,7 @@ resource "aws_security_group_rule" "hub_gateway_api_runner_sg" {
   from_port         = 8800
   to_port           = 8800
   protocol          = "tcp"
-  cidr_blocks       = distinct([var.vpc_network_cidr, var.workstation_ingress_cidr, "0.0.0.0/0"]) #This needs inbound 0.0.0.0/0 for runners to connect in.  https://github.com/dotmesh-io/dotscience-tf/issues/44
+  cidr_blocks       = concat(distinct([var.vpc_network_cidr, var.workstation_ingress_cidr]), local.nat_cidrs)
   description       = "Access to the Dotscience API gateway"
   security_group_id = aws_security_group.ds_hub_security_group.id
 }
@@ -309,7 +310,7 @@ resource "aws_security_group_rule" "hub_transponder" {
   from_port         = 9800
   to_port           = 9800
   protocol          = "tcp"
-  cidr_blocks       = [var.vpc_network_cidr, "0.0.0.0/0"] #This needs inbound 0.0.0.0/0 for runners to connect in.  https://github.com/dotmesh-io/dotscience-tf/issues/44
+  cidr_blocks       = concat(distinct([var.vpc_network_cidr, var.workstation_ingress_cidr]), local.nat_cidrs)
   description       = "Dotscience webhook relay transponder connections"
   security_group_id = aws_security_group.ds_hub_security_group.id
 }
