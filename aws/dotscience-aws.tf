@@ -237,7 +237,7 @@ resource "aws_security_group" "ds_runner_security_group" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.ssh_access_cidr]
+    cidr_blocks = [var.vpc_network_cidr]
     description = "provides ssh access to the dotscience runner, for debugging"
   }
 
@@ -266,7 +266,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [for x in distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr]) : x if x != ""]
+    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr], var.hub_ingress_cidrs)) : x if x != ""]
     description = "Access to the Dotscience Hub web UI for the browser"
   }
 
@@ -274,7 +274,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = [for x in distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr]) : x if x != ""]
+    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr], var.hub_ingress_cidrs)) : x if x != ""]
     description = "Access to the Dotscience Hub web UI for the browser"
   }
 
@@ -282,7 +282,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.ssh_access_cidr]
+    cidr_blocks = var.ssh_access_cidrs
     description = "provides ssh access to the dotscience Hub, for debugging"
   }
 
@@ -298,7 +298,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 9800
     to_port     = 9800
     protocol    = "tcp"
-    cidr_blocks = concat(local.nat_cidrs, [for x in distinct([var.vpc_network_cidr, var.workstation_ingress_cidr]): x if x != ""])
+    cidr_blocks = concat(local.nat_cidrs, [for x in distinct([var.vpc_network_cidr, var.workstation_ingress_cidr]) : x if x != ""])
     description = "Dotscience webhook relay transponder connections"
   }
 

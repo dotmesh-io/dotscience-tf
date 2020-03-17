@@ -24,11 +24,11 @@ variable "vpc_network_cidr" {
   default     = "10.0.0.0/16"
 }
 
-variable "ssh_access_cidr" {
+variable "ssh_access_cidrs" {
   description = "The CIDR block that can connect via SSH"
 }
 
-variable "hub_ingress_cidr" {
+variable "hub_ingress_cidrs" {
   description = "The CIDR block for connections coming into the Hub"
 }
 
@@ -67,11 +67,6 @@ variable "eks_cluster_worker_instance_type" {
 
 variable "eks_cluster_worker_count" {
   default = 2
-}
-
-variable "eks_public_access_cidrs" {
-  description = "List of CIDR blocks which can access the Amazon EKS public API server endpoint."
-  default     = "0.0.0.0/0"
 }
 
 variable "amis" {
@@ -170,12 +165,12 @@ variable "environment" {
 
 variable "workstation_ingress_cidr" {
   description = "The CIDR block for connections coming into the Hub from the user's work station"
-  default = "0.0.0.0/0"
+  default     = "0.0.0.0/0"
 }
 
 variable "model_deployment_mode" {
   description = "Set to 'aws-ga' to host models on model-abc.1-2-3-4.your.dotscience.com or 'route53' to host models on model-abc.your.domain.com"
-  default = "aws-ga"
+  default     = "aws-ga"
 
   validation {
     condition     = var.model_deployment_mode == "aws-ga" || var.model_deployment_mode == "route53"
