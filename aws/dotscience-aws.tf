@@ -290,7 +290,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 8800
     to_port     = 8800
     protocol    = "tcp"
-    cidr_blocks = concat(local.nat_cidrs, distinct([var.vpc_network_cidr, var.workstation_ingress_cidr]))
+    cidr_blocks = concat(local.nat_cidrs, [for x in distinct([var.vpc_network_cidr, var.workstation_ingress_cidr]) : x if x != ""])
     description = "Access to the Dotscience API gateway"
   }
 
@@ -298,7 +298,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 9800
     to_port     = 9800
     protocol    = "tcp"
-    cidr_blocks = concat(local.nat_cidrs, distinct([var.vpc_network_cidr, var.workstation_ingress_cidr]))
+    cidr_blocks = concat(local.nat_cidrs, [for x in distinct([var.vpc_network_cidr, var.workstation_ingress_cidr]): x if x != ""])
     description = "Dotscience webhook relay transponder connections"
   }
 
