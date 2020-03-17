@@ -1,5 +1,6 @@
 terraform {
   required_version = ">= 0.12.0"
+  experiments      = [variable_validation]
 }
 
 provider "aws" {
@@ -43,13 +44,15 @@ locals {
   runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
   ingress_elb_name         = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
-  deployer_model_subdomain = "model-${local.cluster_name}.${var.model_deployment_domain}"
   cluster_name             = "${var.environment}-${random_id.default.hex}"
   grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
   hub_ami                  = var.amis[var.region].Hub
   cpu_runner_ami           = var.amis[var.region].CPURunner
   gpu_runner_ami           = var.amis[var.region].GPURunner
   nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
+  ingress_elb_arn_type     = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[0] : ""
+  ingress_elb_arn_id       = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[1] : ""
+  deployer_model_subdomain = var.create_deployer && var.create_eks  && var.model_deployment_mode == "aws-ga"  ? join("", [".models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress[0].ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -263,7 +266,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [for x in distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr]): x if x != ""]
+    cidr_blocks = [for x in distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr]) : x if x != ""]
     description = "Access to the Dotscience Hub web UI for the browser"
   }
 
@@ -271,7 +274,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks =  [for x in distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr]): x if x != ""]
+    cidr_blocks = [for x in distinct([var.vpc_network_cidr, var.letsencrypt_ingress_cidr, var.workstation_ingress_cidr, var.hub_ingress_cidr]) : x if x != ""]
     description = "Access to the Dotscience Hub web UI for the browser"
   }
 
@@ -411,12 +414,12 @@ resource "local_file" "ds_env_file" {
 }
 
 resource "aws_route53_zone" "model_deployments_subdomain" {
-  count = var.create_deployer && var.create_eks ? 1 : 0
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "route53" ? 1 : 0
   name  = local.deployer_model_subdomain
 }
 
 resource "aws_route53_record" "model_deployments_subdomain" {
-  count   = var.create_deployer && var.create_eks ? 1 : 0
+  count   = var.create_deployer && var.create_eks && var.model_deployment_mode == "route53" ? 1 : 0
   zone_id = aws_route53_zone.model_deployments_subdomain[0].zone_id
   name    = "*.${local.deployer_model_subdomain}"
   type    = "CNAME"
@@ -425,15 +428,47 @@ resource "aws_route53_record" "model_deployments_subdomain" {
 }
 
 data "aws_route53_zone" "model_deployments_domain" {
-  count = var.create_deployer && var.create_eks ? 1 : 0
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "route53" ? 1 : 0
   name  = var.model_deployment_domain
 }
 
 resource "aws_route53_record" "model_deployments_domain_ns" {
-  count   = var.create_deployer && var.create_eks ? 1 : 0
+  count   = var.create_deployer && var.create_eks && var.model_deployment_mode == "route53" ? 1 : 0
   zone_id = data.aws_route53_zone.model_deployments_domain[0].zone_id
   name    = local.deployer_model_subdomain
   type    = "NS"
   ttl     = "60"
   records = aws_route53_zone.model_deployments_subdomain[0].name_servers
+}
+
+
+resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
+  name            = "Model"
+  ip_address_type = "IPV4"
+  enabled         = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? true : false
+  count           = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+}
+
+resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
+  listener_arn = aws_globalaccelerator_listener.ds_model_ingress[0].id
+  endpoint_configuration {
+    endpoint_id = join("", concat(["arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/"], [local.ingress_elb_arn_type, "/", local.ingress_elb_arn_id]))
+    weight      = 100
+  }
+  health_check_path             = "/"
+  health_check_port             = 80
+  health_check_interval_seconds = 30
+  count                         = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+}
+
+resource "aws_globalaccelerator_listener" "ds_model_ingress" {
+  accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress[0].id
+  client_affinity = "SOURCE_IP"
+  protocol        = "TCP"
+  count           = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+
+  port_range {
+    from_port = 80
+    to_port   = 80
+  }
 }

@@ -128,6 +128,7 @@ variable "dotscience_domain" {
 
 variable "model_deployment_domain" {
   description = "Domain name that you control the name servers for, into which model deployments go into. See docs https://docs.dotscience.com/install/tf-aws/"
+  default     = "your.dotscience.net"
 }
 
 variable "webrelay_key" {
@@ -170,4 +171,14 @@ variable "environment" {
 variable "workstation_ingress_cidr" {
   description = "The CIDR block for connections coming into the Hub from the user's work station"
   default = "0.0.0.0/0"
+}
+
+variable "model_deployment_mode" {
+  description = "Set to 'aws-ga' to host models on model-abc.1-2-3-4.your.dotscience.com or 'route53' to host models on model-abc.your.domain.com"
+  default = "aws-ga"
+
+  validation {
+    condition     = var.model_deployment_mode == "aws-ga" || var.model_deployment_mode == "route53"
+    error_message = "Set to 'aws-ga' to host models on model-abc.1-2-3-4.your.dotscience.com or 'route53' to host models on model-abc.your.domain.com."
+  }
 }

@@ -44,3 +44,8 @@ variable "kubernetes_token" {
   description = "Token to auth into the kubernetes cluster"
   type        = string
 }
+
+variable "model_deployment_mode" {
+  description = "Set to 'aws-ga' to host models on model-abc.1-2-3-4.your.dotscience.com or 'route53' to host models on model-abc.your.domain.com"
+  default = "aws-ga"
+}
