@@ -52,7 +52,7 @@ locals {
   nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
   ingress_elb_arn_type     = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[0] : ""
   ingress_elb_arn_id       = var.create_deployer && var.create_eks ? split(".", (split("-", local.ingress_elb_name)[1]))[0] : ""
-  deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? join("", ["models-", replace(aws_globalaccelerator_accelerator.ds_model_ingress[0].ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
+  deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? join("", ["model-", replace(aws_globalaccelerator_accelerator.ds_model_ingress[0].ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
 }
 
 data "aws_eks_cluster" "cluster" {
