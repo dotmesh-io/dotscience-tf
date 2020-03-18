@@ -9,7 +9,7 @@ provider "aws" {
     session_name = "dotscience-tf"
   }
   region  = var.region
-  version = "~> 2.50.0"
+  version = "~> 2.53"
 }
 
 provider "kubernetes" {
@@ -122,7 +122,7 @@ module "ds_monitoring" {
 module "eks" {
   source                               = "terraform-aws-modules/eks/aws"
   cluster_name                         = "eks-${local.cluster_name}"
-  subnets                              = module.vpc.public_subnets
+  subnets                              = module.vpc.private_subnets
   create_eks                           = var.create_eks ? true : false
   manage_aws_auth                      = var.create_eks ? true : false
   cluster_create_timeout               = "30m"

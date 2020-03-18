@@ -222,6 +222,7 @@ resource "helm_release" "nginx-ingress" {
 
   name       = "nginx-ingress"
   repository = data.helm_repository.stable.metadata[0].name
+  version    = "1.34.1"
   chart      = "stable/nginx-ingress"
   timeout    = 300
 
@@ -244,7 +245,6 @@ resource "kubernetes_service" "ingress_lb" {
     name = "external-ingress"
     labels = {
       "app"       = "nginx-ingress"
-      "component" = "controller"
       "release"   = "nginx-ingress"
     }
     annotations = {
@@ -254,7 +254,6 @@ resource "kubernetes_service" "ingress_lb" {
   spec {
     selector = {
       "app"       = "nginx-ingress"
-      "component" = "controller"
       "release"   = "nginx-ingress"
     }
 
