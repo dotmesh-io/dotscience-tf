@@ -235,6 +235,11 @@ resource "helm_release" "nginx-ingress" {
     name  = "controller.service.enabled"
     value = "false"
   }
+
+  set {
+    name  = "controller.kind"
+    value = "DaemonSet"
+  }
 }
 
 resource "kubernetes_service" "ingress_lb" {
