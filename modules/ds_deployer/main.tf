@@ -249,9 +249,9 @@ resource "kubernetes_service" "ingress_lb" {
   metadata {
     name = "external-ingress"
     labels = {
-      "app"       = "nginx-ingress"
-      "component" = "controller"
-      "release"   = "nginx-ingress"
+      "app"                         = "nginx-ingress"
+      "app.kubernetes.io/component" = "controller"
+      "release"                     = "nginx-ingress"
     }
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
@@ -260,7 +260,7 @@ resource "kubernetes_service" "ingress_lb" {
   spec {
     selector = {
       "app"       = "nginx-ingress"
-      "component" = "controller"
+      "app.kubernetes.io/component" = "controller"
       "release"   = "nginx-ingress"
     }
 
