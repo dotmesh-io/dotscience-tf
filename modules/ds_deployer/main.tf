@@ -250,15 +250,17 @@ resource "kubernetes_service" "ingress_lb" {
     name = "external-ingress"
     labels = {
       "app"       = "nginx-ingress"
+      "component" = "controller"
       "release"   = "nginx-ingress"
     }
     annotations = {
-      "service.beta.kubernetes.io/aws-load-balancer-type"            = "nlb"
+      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
     }
   }
   spec {
     selector = {
       "app"       = "nginx-ingress"
+      "component" = "controller"
       "release"   = "nginx-ingress"
     }
 
@@ -269,10 +271,10 @@ resource "kubernetes_service" "ingress_lb" {
       protocol    = "TCP"
     }
 
-    type         = "LoadBalancer"
+    type = "LoadBalancer"
   }
 }
 
 locals {
-  ingress_host = var.dotscience_environment == "aws"  ?  kubernetes_service.ingress_lb[*].load_balancer_ingress[0].hostname : kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
+  ingress_host = var.dotscience_environment == "aws" ? kubernetes_service.ingress_lb[*].load_balancer_ingress[0].hostname : kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
 }
