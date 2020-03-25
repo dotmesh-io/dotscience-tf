@@ -118,12 +118,12 @@ variable "map_users" {
 
 variable "dotscience_domain" {
   description = "Domain name that you control, in which to deploy dotscience Hub to, eg. dotscience.example-corp.com. Currently defaults to a wildcard DNS server that is maintained by Dotscience"
-  default     = "your.dotscience.net"
+  default     = "your.dots.ci"
 }
 
 variable "model_deployment_domain" {
   description = "Domain name that you control the name servers for, into which model deployments go into. See docs https://docs.dotscience.com/install/tf-aws/"
-  default     = "your.dotscience.net"
+  default     = "your.dots.ci"
 }
 
 variable "webrelay_key" {

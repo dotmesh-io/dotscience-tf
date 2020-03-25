@@ -41,7 +41,7 @@ variable "license_key" {
 }
 
 variable "letsencrypt_mode" {
-  description = "Let's Encrypt mode, choose one of 'off' (don't attempt to get TLS cert at all), 'staging' (use letsencrypt staging server, good for tests), 'production' (get real TLS cert for hub hostname). Note that we (Dotscience) provide a xip.io-like service at hub-1-2-3-4.your.dotscience.net so that even without setting up DNS, you'll get a TLS-enabled hub endpoint given just a public IPv4 address for your hub"
+  description = "Let's Encrypt mode, choose one of 'off' (don't attempt to get TLS cert at all), 'staging' (use letsencrypt staging server, good for tests), 'production' (get real TLS cert for hub hostname). Note that we (Dotscience) provide a xip.io-like service at hub-1-2-3-4.your.dots.ci so that even without setting up DNS, you'll get a TLS-enabled hub endpoint given just a public IPv4 address for your hub"
   type        = string
   default     = "off"
 }
@@ -66,7 +66,7 @@ variable "runner_machine_type" {
 variable "dotscience_domain" {
   description = "Domain name that you control, in which to deploy dotscience to, eg. dotscience.example-corp.com"
   type        = string
-  default     = "your.dotscience.net"
+  default     = "your.dots.ci"
 }
 
 variable "create_gke" {
