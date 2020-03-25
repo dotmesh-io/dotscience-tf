@@ -131,7 +131,7 @@ resource "google_compute_disk" "dotscience_hub_disk" {
   type = "pd-ssd"
   zone = local.zone
   size = 100
-  source_snapshot_id = var.restore_from_backup
+  snapshot = var.restore_from_backup
 }
 
 resource "google_compute_disk_resource_policy_attachment" "attachment" {
