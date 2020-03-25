@@ -100,3 +100,9 @@ variable "environment" {
   type        = string
   default     = "ds"
 }
+
+variable "restore_from_backup" {
+  description = "Set to the snapshot id to restore hub disk from backup - see https://www.terraform.io/docs/providers/google/r/compute_disk.html#source_snapshot_id"
+  type        = string
+  default     = ""
+}
