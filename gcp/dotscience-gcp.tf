@@ -188,7 +188,7 @@ resource "google_compute_firewall" "dotscience_firewall" {
     ports    = ["80", "443", "8800", "9800"]
   }
 
-  source_ranges = [var.hub_ingress_cidr]
+  source_ranges = var.hub_ingress_cidrs
 }
 
 resource "google_compute_firewall" "dotscience_ssh_firewall" {
@@ -205,7 +205,7 @@ resource "google_compute_firewall" "dotscience_ssh_firewall" {
     ports    = ["22"]
   }
 
-  source_ranges = [var.ssh_access_cidr]
+  source_ranges = var.ssh_access_cidrs
 }
 
 resource "google_compute_network" "dotscience_network" {
