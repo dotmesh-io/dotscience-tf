@@ -18,6 +18,9 @@ variable "project" {
   type        = string
 }
 
+variable "dotscience_startup_version" {
+}
+
 variable "admin_password" {
   description = "The login password for the initial admin user"
   type        = string

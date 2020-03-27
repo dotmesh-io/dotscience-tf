@@ -25,21 +25,21 @@ resource "random_id" "deployer_token" {
 
 locals {
   hub_hostname             = join("", ["hub-", replace(google_compute_address.hub_ipv4_address.address, ".", "-"), ".", var.dotscience_domain])
-  deployer_model_subdomain = var.create_deployer && var.create_gke ? join("", [".models-", replace(element(concat(module.ds_deployer.ingress_host, list("")), 0), ".", "-"), ".", var.dotscience_domain]) : "" 
+  deployer_model_subdomain = var.create_deployer && var.create_gke ? join("", [".models-", replace(element(concat(module.ds_deployer.ingress_host, list("")), 0), ".", "-"), ".", var.dotscience_domain]) : ""
   zone                     = var.zone
   deployer_token           = random_id.deployer_token.hex
   grafana_host             = var.create_monitoring && var.create_gke ? module.ds_monitoring.grafana_host : ""
 }
 
 module "ds_deployer" {
-  source                   = "../modules/ds_deployer"
-  create_deployer          = var.create_deployer && var.create_gke ? 1 : 0
-  hub_hostname             = local.hub_hostname
-  deployer_token           = local.deployer_token
-  kubernetes_host          = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
-  cluster_ca_certificate   = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
-  kubernetes_token         = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
-  dotscience_environment   = "gcp"
+  source                 = "../modules/ds_deployer"
+  create_deployer        = var.create_deployer && var.create_gke ? 1 : 0
+  hub_hostname           = local.hub_hostname
+  deployer_token         = local.deployer_token
+  kubernetes_host        = element(concat(google_container_cluster.dotscience_deployer[*].endpoint, list("")), 0)
+  cluster_ca_certificate = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
+  kubernetes_token       = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
+  dotscience_environment = "gcp"
 }
 
 module "ds_monitoring" {
@@ -97,7 +97,8 @@ resource "google_compute_instance" "dotscience_hub_vm" {
 #!/bin/bash -xe
 echo "Starting Dotscience hub"
 
-sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/unstable/ds-startup
+sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/${var.dotscience_startup_version}/ds-startup
+
 sudo chmod +wx /usr/local/bin/ds-startup
 
 ds-startup --admin-password "${var.admin_password}" --cloud gcp --hub-size "${var.hub_volume_size}" --hub-device /dev/sdb --hub-hostname "${local.hub_hostname}" --use-kms=false --license-key="${var.license_key}" --letsencrypt-mode="${var.letsencrypt_mode}" --gcp-runner-project "${var.project}" --gcp-runner-zone "${local.zone}" --gcp-runner-machine-type "${var.runner_machine_type}" --deployer-token "${random_id.deployer_token.hex}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --deployment-ingress-class "nginx" --deployment-subdomain "${local.deployer_model_subdomain}"
@@ -127,10 +128,10 @@ resource "google_compute_address" "hub_ipv4_address" {
 }
 
 resource "google_compute_disk" "dotscience_hub_disk" {
-  name = "dotscience-hub-disk-${random_id.default.hex}"
-  type = "pd-ssd"
-  zone = local.zone
-  size = 100
+  name     = "dotscience-hub-disk-${random_id.default.hex}"
+  type     = "pd-ssd"
+  zone     = local.zone
+  size     = 100
   snapshot = var.restore_from_backup
 }
 
@@ -178,11 +179,11 @@ resource "google_compute_firewall" "dotscience_firewall" {
 
   allow {
     protocol = "tcp"
-  // Port 80   - Access to the Dotscience Hub web UI
-  // Port 443  - Access to the Dotscience Hub web UI with TLS
-  // Port 8800 - Dotscience API gateway
-  // Port 9800 - Dotscience webhook relay transponder connections
-    ports    = ["80", "443", "8800", "9800"]
+    // Port 80   - Access to the Dotscience Hub web UI
+    // Port 443  - Access to the Dotscience Hub web UI with TLS
+    // Port 8800 - Dotscience API gateway
+    // Port 9800 - Dotscience webhook relay transponder connections
+    ports = ["80", "443", "8800", "9800"]
   }
 
   source_ranges = var.hub_ingress_cidrs
@@ -199,7 +200,7 @@ resource "google_compute_firewall" "dotscience_ssh_firewall" {
   allow {
     protocol = "tcp"
     // Port 22   - Provides ssh access to the dotscience runner, for debugging 
-    ports    = ["22"]
+    ports = ["22"]
   }
 
   source_ranges = var.ssh_access_cidrs
@@ -210,6 +211,6 @@ resource "google_compute_network" "dotscience_network" {
 }
 
 resource "local_file" "ds_env_file" {
-    content     = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
-    filename = ".ds_env.sh"
+  content  = "export DOTSCIENCE_USERNAME=admin\nexport DOTSCIENCE_PASSWORD=${var.admin_password}\nexport DOTSCIENCE_URL=https://${local.hub_hostname}"
+  filename = ".ds_env.sh"
 }
