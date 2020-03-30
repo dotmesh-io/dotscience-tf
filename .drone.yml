@@ -11,8 +11,6 @@ steps:
   when:
     event: [ push, pull_request ]
     status: success
-  depends_on:
-    - docker
   commands:
     - id=$(curl -X POST -F "token=$${E2E_TRIGGER_TOKEN}" -F "ref=master" -F "variables[DOTSCIENCE_TF_CLOUD_PROVIDER]=aws" -F "variables[DOTSCIENCE_TF_COMMIT_HASH]=$${DRONE_COMMIT}" https://gitlab.dotmesh.com/api/v4/projects/dotmesh%2Fe2e-firecracker-sync/trigger/pipeline | jq .id)
     - echo "Triggered successfully, pipeline - https://gitlab.dotmesh.com/dotmesh/e2e-firecracker-sync/pipelines/$${id}"
