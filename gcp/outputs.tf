@@ -1,4 +1,3 @@
-
 output "hub_public_url" {
   value = join("", ["https://", local.hub_hostname])
 }
@@ -23,6 +22,6 @@ output "gke_cluster_name" {
   value = "dotscience-deployer-${random_id.default.hex}"
 }
 
-output "CLI_env_file" {
+output "cli_env_file" {
   value = "source .ds_env.sh"
 }
