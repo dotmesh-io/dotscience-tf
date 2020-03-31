@@ -1,15 +1,19 @@
-output "DotscienceHub_IP" {
-  value = "http://${aws_eip.ds_eip.public_ip}"
+output "hub_public_url" {
+  value = join("", ["https://", local.hub_hostname])
 }
 
-output "DotscienceHub_URL" {
-  value = "https://${local.hub_hostname}"
+output "hub_public_ip" {
+  value = local.hub_ip
 }
 
-output "Grafana_URL" {
+output "grafana_host" {
   value = local.grafana_host
 }
 
-output "CLI_env_file" {
+output "models_served_under" {
+  value = local.deployer_model_subdomain
+}
+
+output "cli_env_file" {
   value = "source .ds_env.sh"
 }

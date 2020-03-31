@@ -40,6 +40,7 @@ data "aws_caller_identity" "current" {}
 
 locals {
   hub_hostname             = join("", [replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  hub_ip                   = aws_eip.ds_eip.public_ip
   hub_subnet               = module.vpc.public_subnets[0]
   runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
