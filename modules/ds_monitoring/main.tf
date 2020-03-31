@@ -3,7 +3,7 @@ provider "kubernetes" {
   cluster_ca_certificate = var.cluster_ca_certificate
   token                  = var.kubernetes_token
   load_config_file       = false
-  version                = "~> 1.10.0"
+  version                = "~> 1.11.1"
 }
 
 provider "helm" {
@@ -64,7 +64,7 @@ resource "helm_release" "prometheus" {
   name       = "prometheus"
   repository = data.helm_repository.stable.metadata[0].name
   chart      = "stable/prometheus"
-  timeout = 300
+  timeout    = 300
 
   set {
     name  = "server.global.scrape_interval"
@@ -87,8 +87,8 @@ resource "helm_release" "grafana" {
 
   name       = "grafana"
   repository = data.helm_repository.stable.metadata[0].name
-  chart = "stable/grafana"
-  timeout = 300
+  chart      = "stable/grafana"
+  timeout    = 300
 
   depends_on = [
     kubernetes_secret.grafana_admin
@@ -115,8 +115,8 @@ locals {
 }
 
 provider "grafana" {
-  url  = local.grafana_host
-  auth = "${var.grafana_admin_user}:${var.grafana_admin_password}"
+  url     = local.grafana_host
+  auth    = "${var.grafana_admin_user}:${var.grafana_admin_password}"
   version = "~> 1.5"
 }
 

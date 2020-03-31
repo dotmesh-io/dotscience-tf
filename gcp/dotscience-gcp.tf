@@ -8,7 +8,7 @@ provider "kubernetes" {
   token                  = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
   cluster_ca_certificate = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
   load_config_file       = false
-  version                = "~> 1.10.0"
+  version                = "~> 1.11.1"
 }
 
 data "google_client_config" "default" {
