@@ -386,6 +386,53 @@ resource "aws_instance" "ds_hub" {
   }
 }
 
+resource "aws_ecr_repository" "ds_registry" {
+  name                 = local.cluster_name
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+resource "aws_ecr_repository_policy" "ds_registry" {
+  repository = aws_ecr_repository.ds_registry.name
+  policy     = <<EOF
+{
+    "Version": "2008-10-17",
+    "Statement": [
+        {
+            "Sid": "new policy",
+            "Effect": "Allow",
+            "Principal" : { "AWS" : "*" },
+            "Action": [
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:PutImage",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload",
+                "ecr:DescribeRepositories",
+                "ecr:GetRepositoryPolicy",
+                "ecr:ListImages",
+                "ecr:DeleteRepository",
+                "ecr:BatchDeleteImage",
+                "ecr:SetRepositoryPolicy",
+                "ecr:DeleteRepositoryPolicy"
+            ]
+        }
+    ]
+}
+EOF
+  # "Principal": {
+  #               "Service": [
+  #                 "ec2.amazonaws.com"
+  #               ]
+  #             },
+
+}
+
 data "aws_iam_policy_document" "ds_kms_policy" {
   statement {
     principals {
