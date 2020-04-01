@@ -16,6 +16,7 @@ provider "helm" {
     host                   = var.kubernetes_host
     cluster_ca_certificate = var.cluster_ca_certificate
     token                  = var.kubernetes_token
+    load_config_file       = false
   }
   version = "1.0.0"
 }
