@@ -167,7 +167,13 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ec2:AttachVolume",
                 "ec2:TerminateInstances",
                 "ec2:CreateTags",
-                "ec2:RunInstances"
+                "ec2:RunInstances",
+                "ecr:BatchGetImage",
+                "ecr:TagResource",
+                "ecr:DescribeRepositories",
+                "ecr:ListImages",
+                "ecr:PutImage",
+                "ecr:GetAuthorizationToken"
             ],
             "Resource": [
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
@@ -179,7 +185,9 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:key-pair/${var.key_name}",
                 "arn:aws:ec2:${var.region}::image/${local.hub_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.cpu_runner_ami}",
-                "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}"
+                "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
+                "${aws_ecr_repository.ds_registry.arn}"
             ]
         },
         {
