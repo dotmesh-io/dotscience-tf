@@ -387,8 +387,7 @@ resource "aws_instance" "ds_hub" {
 }
 
 resource "aws_ecr_repository" "ds_registry" {
-  name                 = local.cluster_name
-  image_tag_mutability = "MUTABLE"
+  name = local.cluster_name
 
   image_scanning_configuration {
     scan_on_push = true
@@ -404,7 +403,7 @@ resource "aws_ecr_repository_policy" "ds_registry" {
         {
             "Sid": "new policy",
             "Effect": "Allow",
-            "Principal" : { "AWS" : "*" },
+            "Principal" : { "AWS" : "${data.aws_caller_identity.current.account_id}" },
             "Action": [
                 "ecr:GetDownloadUrlForLayer",
                 "ecr:BatchGetImage",
@@ -425,12 +424,6 @@ resource "aws_ecr_repository_policy" "ds_registry" {
     ]
 }
 EOF
-  # "Principal": {
-  #               "Service": [
-  #                 "ec2.amazonaws.com"
-  #               ]
-  #             },
-
 }
 
 data "aws_iam_policy_document" "ds_kms_policy" {
