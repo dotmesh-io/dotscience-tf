@@ -14,6 +14,10 @@ output "models_served_under" {
   value = local.deployer_model_subdomain
 }
 
+output "model_eip" {
+  value = aws_eip.ds_model_eip[0].public_ip
+}
+
 output "cli_env_file" {
   value = "source .ds_env.sh"
 }

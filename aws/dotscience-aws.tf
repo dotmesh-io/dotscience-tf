@@ -442,6 +442,60 @@ resource "aws_route53_record" "model_deployments_domain_ns" {
   records = aws_route53_zone.model_deployments_subdomain[0].name_servers
 }
 
+resource "aws_eip" "ds_model_eip" {
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+  vpc   = true
+}
+
+resource "aws_lb" "ds_model_nlb" {
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+  
+  # A second NLB to point to the first one created by Kubernetes, to compensate
+  # for the fact that K8s 1.15 clusters can't associate NLBs with EIPs (and we
+  # need an EIP so that we can use the *.models.1-2-3-4.your.dots.ci trick).
+  # Then we can set load_balancer_source_ranges on the k8s NLB and because IP
+  # source info is preserved thru an NLB (but not a GA) we'll be able to restrict
+  # models to be private (at least restrict them to an internal CIDR).
+
+  load_balancer_type = "network"
+
+  subnet_mapping {
+    subnet_id     = module.vpc.public_subnets[1] # XXX point to all subnets? but one EIP per subnet...
+    allocation_id = aws_eip.ds_model_eip[0].id
+  }
+}
+
+resource "aws_lb_listener" "ds_model_front_end" {
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+  
+  load_balancer_arn = aws_lb.ds_model_nlb[0].arn
+  port              = "80"
+  protocol          = "TCP"
+  default_action {
+    type             = "forward"
+    # target_group_arn = "arn:aws:elasticloadbalancing:us-east-1:108998689641:targetgroup/k8s-default-external-1a4b08fbd6/66d0528088f0914c" <- didn't work trying to reuse existing target group as you can only attach a target group to one LB at a time
+    target_group_arn = "${aws_lb_target_group.ds_model_front_end_tg.arn}"
+  }
+}
+
+# Target all the workers in e.g. eks-luke-testing-9b710711-worker-group-1-eks_asg on port 31097
+# Question - will this port ever change?
+
+resource "aws_lb_target_group" "ds_model_front_end_tg" {
+  target_type = "instance"
+  port     = 31097
+  protocol = "TCP"
+  vpc_id   = module.vpc.vpc_id
+}
+
+resource "aws_lb_target_group_attachment" "ds_model_front_end_tg_attachment" {
+  target_group_arn = "${aws_lb_target_group.ds_model_front_end_tg.arn}"
+  target_id        = "i-00fa4f825f4a0815b"
+  port             = 31097
+}
+
+# EKS creates a target group for an ingress named like: k8s-default-external-27908e6273
+# How can we get its ARN?
 
 resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
   name            = "Model"
