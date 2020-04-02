@@ -51,9 +51,7 @@ locals {
   cpu_runner_ami           = var.amis[var.region].CPURunner
   gpu_runner_ami           = var.amis[var.region].GPURunner
   nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
-  ingress_elb_arn_type     = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[0] : ""
-  ingress_elb_arn_id       = var.create_deployer && var.create_eks ? split(".", (split("-", local.ingress_elb_name)[1]))[0] : ""
-  deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? join("", ["model-", replace(aws_globalaccelerator_accelerator.ds_model_ingress[0].ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
+  deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -120,6 +118,22 @@ module "ds_monitoring" {
   dotscience_environment = "aws"
 }
 
+
+resource "aws_security_group" "eks_additional_ingress_security_group" {
+  name        = "eks-additional-ingress-sg-${random_id.default.hex}"
+  description = "SG for EKS workers"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 30080
+    to_port     = 30080
+    protocol    = "tcp"
+    cidr_blocks = var.model_ingress_cidrs
+    description = "access model ingress"
+  }
+}
+
+
 module "eks" {
   source                               = "terraform-aws-modules/eks/aws"
   cluster_name                         = "eks-${local.cluster_name}"
@@ -131,6 +145,7 @@ module "eks" {
   cluster_endpoint_private_access      = true
   cluster_endpoint_public_access       = true
   cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
+  worker_additional_security_group_ids = [aws_security_group.eks_additional_ingress_security_group.id]
 
   tags = {
     Environment = local.cluster_name
@@ -460,7 +475,7 @@ resource "aws_lb" "ds_model_nlb" {
   load_balancer_type = "network"
 
   subnet_mapping {
-    subnet_id     = module.vpc.public_subnets[1] # XXX point to all subnets? but one EIP per subnet...
+    subnet_id     = module.vpc.public_subnets[0]
     allocation_id = aws_eip.ds_model_eip[0].id
   }
 }
@@ -473,57 +488,22 @@ resource "aws_lb_listener" "ds_model_front_end" {
   protocol          = "TCP"
   default_action {
     type             = "forward"
-    # target_group_arn = "arn:aws:elasticloadbalancing:us-east-1:108998689641:targetgroup/k8s-default-external-1a4b08fbd6/66d0528088f0914c" <- didn't work trying to reuse existing target group as you can only attach a target group to one LB at a time
-    target_group_arn = "${aws_lb_target_group.ds_model_front_end_tg.arn}"
+    target_group_arn = aws_lb_target_group.ds_model_front_end_tg.arn
   }
 }
-
-# Target all the workers in e.g. eks-luke-testing-9b710711-worker-group-1-eks_asg on port 31097
-# Question - will this port ever change?
 
 resource "aws_lb_target_group" "ds_model_front_end_tg" {
   target_type = "instance"
-  port     = 31097
+  port     = 30080
   protocol = "TCP"
   vpc_id   = module.vpc.vpc_id
-}
 
-resource "aws_lb_target_group_attachment" "ds_model_front_end_tg_attachment" {
-  target_group_arn = "${aws_lb_target_group.ds_model_front_end_tg.arn}"
-  target_id        = "i-00fa4f825f4a0815b"
-  port             = 31097
-}
-
-# EKS creates a target group for an ingress named like: k8s-default-external-27908e6273
-# How can we get its ARN?
-
-resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
-  name            = "Model"
-  ip_address_type = "IPV4"
-  enabled         = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? true : false
-  count           = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
-}
-
-resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
-  listener_arn = aws_globalaccelerator_listener.ds_model_ingress[0].id
-  endpoint_configuration {
-    endpoint_id = join("", concat(["arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/"], [local.ingress_elb_arn_type, "/", local.ingress_elb_arn_id]))
-    weight      = 100
+  lifecycle {
+    create_before_destroy = true
   }
-  health_check_path             = "/"
-  health_check_port             = 80
-  health_check_interval_seconds = 30
-  count                         = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
 }
 
-resource "aws_globalaccelerator_listener" "ds_model_ingress" {
-  accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress[0].id
-  client_affinity = "SOURCE_IP"
-  protocol        = "TCP"
-  count           = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
-
-  port_range {
-    from_port = 80
-    to_port   = 80
-  }
+resource "aws_autoscaling_attachment" "asg_attachment_bar" {
+  autoscaling_group_name = module.eks.workers_asg_names[0]
+  alb_target_group_arn   = aws_lb_target_group.ds_model_front_end_tg.arn
 }
