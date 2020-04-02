@@ -51,7 +51,7 @@ locals {
   cpu_runner_ami           = var.amis[var.region].CPURunner
   gpu_runner_ami           = var.amis[var.region].GPURunner
   nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
-  deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
+  deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -458,12 +458,12 @@ resource "aws_route53_record" "model_deployments_domain_ns" {
 }
 
 resource "aws_eip" "ds_model_eip" {
-  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
   vpc   = true
 }
 
 resource "aws_lb" "ds_model_nlb" {
-  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
   
   # A second NLB to point to the first one created by Kubernetes, to compensate
   # for the fact that K8s 1.15 clusters can't associate NLBs with EIPs (and we
@@ -481,7 +481,7 @@ resource "aws_lb" "ds_model_nlb" {
 }
 
 resource "aws_lb_listener" "ds_model_front_end" {
-  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
   
   load_balancer_arn = aws_lb.ds_model_nlb[0].arn
   port              = "80"
@@ -504,6 +504,7 @@ resource "aws_lb_target_group" "ds_model_front_end_tg" {
 }
 
 resource "aws_autoscaling_attachment" "asg_attachment_bar" {
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
   autoscaling_group_name = module.eks.workers_asg_names[0]
   alb_target_group_arn   = aws_lb_target_group.ds_model_front_end_tg.arn
 }

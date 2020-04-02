@@ -168,11 +168,11 @@ variable "environment" {
 }
 
 variable "model_deployment_mode" {
-  description = "Set to 'aws-ga' to host models on model-abc.1-2-3-4.your.dots.ci or 'route53' to host models on model-abc.your.domain.com"
-  default     = "aws-ga"
+  description = "Set to 'aws-eip' to host models on model-abc.1-2-3-4.your.dots.ci or 'route53' to host models on model-abc.your.domain.com"
+  default     = "aws-eip"
 
   validation {
-    condition     = var.model_deployment_mode == "aws-ga" || var.model_deployment_mode == "route53"
-    error_message = "Set to 'aws-ga' to host models on model-abc.1-2-3-4.your.dots.ci or 'route53' to host models on model-abc.your.domain.com."
+    condition     = var.model_deployment_mode == "aws-eip" || var.model_deployment_mode == "route53"
+    error_message = "Set to 'aws-eip' to host models on model-abc.1-2-3-4.your.dots.ci or 'route53' to host models on model-abc.your.domain.com."
   }
 }
