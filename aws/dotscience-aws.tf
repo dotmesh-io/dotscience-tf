@@ -154,9 +154,9 @@ module "eks" {
   map_accounts = var.map_accounts
 }
 
-resource "aws_iam_role_policy" "ds_policy" {
-  name   = "ds-policy-${random_id.default.hex}"
-  role   = aws_iam_role.ds_role.id
+resource "aws_iam_role_policy" "ds_hub_policy" {
+  name   = "ds-hub-policy-${random_id.default.hex}"
+  role   = aws_iam_role.ds_hub_role.id
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -211,8 +211,46 @@ resource "aws_iam_role_policy" "ds_policy" {
 POLICY
 }
 
-resource "aws_iam_role" "ds_role" {
-  name               = "ds-role-${random_id.default.hex}"
+resource "aws_iam_role" "ds_hub_role" {
+  name               = "ds-hub-${random_id.default.hex}"
+  path               = "/"
+  assume_role_policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_role_policy" "ds_runner_policy" {
+  name   = "ds-hub-${random_id.default.hex}"
+  role   = aws_iam_role.ds_runner_role.id
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:GetAuthorizationToken"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+POLICY
+}
+
+resource "aws_iam_role" "ds_runner_role" {
+  name               = "ds-runner-${random_id.default.hex}"
   path               = "/"
   assume_role_policy = <<POLICY
 {
@@ -233,7 +271,7 @@ POLICY
 resource "aws_iam_instance_profile" "ds_instance_profile" {
   name = "ds-instance-profile-${random_id.default.hex}"
   path = "/"
-  role = aws_iam_role.ds_role.id
+  role = aws_iam_role.ds_hub_role.id
 }
 
 resource "aws_security_group" "ds_runner_security_group" {
