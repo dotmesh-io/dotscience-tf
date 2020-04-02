@@ -13,3 +13,6 @@ environment             = "ds-prod"
 region                  = "eu-west-2"
 dns_management          = "self"
 model_deployment_domain = "dotscience-deploy.net"
+hub_ingress_cidrs      = ["0.0.0.0/0"]
+ssh_access_cidrs       = ["0.0.0.0/0"]
+model_ingress_cidrs    = ["0.0.0.0/0"]
