@@ -254,9 +254,6 @@ resource "kubernetes_service" "ingress_lb" {
       "app.kubernetes.io/component" = "controller"
       "release"                     = "nginx-ingress"
     }
-    annotations = {
-      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
-    }
   }
   spec {
     selector = {
@@ -267,15 +264,16 @@ resource "kubernetes_service" "ingress_lb" {
 
     port {
       name        = "app"
-      port        = 80
+      port        = 30080
+      node_port   = 30080
       target_port = "http"
       protocol    = "TCP"
     }
 
-    type = "LoadBalancer"
+    type = "NodePort"
   }
 }
 
 locals {
-  ingress_host = var.dotscience_environment == "aws" ? kubernetes_service.ingress_lb[*].load_balancer_ingress[0].hostname : kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
+  ingress_host = var.dotscience_environment == "aws" ? ["<NodePort on 30080>"] : kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
 }
