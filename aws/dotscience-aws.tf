@@ -465,12 +465,10 @@ resource "aws_eip" "ds_model_eip" {
 resource "aws_lb" "ds_model_nlb" {
   count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
   
-  # A second NLB to point to the first one created by Kubernetes, to compensate
-  # for the fact that K8s 1.15 clusters can't associate NLBs with EIPs (and we
-  # need an EIP so that we can use the *.models.1-2-3-4.your.dots.ci trick).
-  # Then we can set load_balancer_source_ranges on the k8s NLB and because IP
-  # source info is preserved thru an NLB (but not a GA) we'll be able to restrict
-  # models to be private (at least restrict them to an internal CIDR).
+  # An NLB to associate with an EIP, pointing to nginx on NodePort on the
+  # workers in Kubernetes. We can't express this directly in Kubernetes because
+  # K8s 1.15 clusters can't associate NLBs with EIPs (and we need an EIP so that
+  # we can use the *.models.1-2-3-4.your.dots.ci trick).
 
   load_balancer_type = "network"
 
