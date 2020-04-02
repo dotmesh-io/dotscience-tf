@@ -486,7 +486,7 @@ resource "aws_lb_listener" "ds_model_front_end" {
   protocol          = "TCP"
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.ds_model_front_end_tg.arn
+    target_group_arn = aws_lb_target_group.ds_model_front_end_tg[0].arn
   }
 }
 
@@ -506,5 +506,5 @@ resource "aws_lb_target_group" "ds_model_front_end_tg" {
 resource "aws_autoscaling_attachment" "asg_attachment_bar" {
   count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
   autoscaling_group_name = module.eks.workers_asg_names[0]
-  alb_target_group_arn   = aws_lb_target_group.ds_model_front_end_tg.arn
+  alb_target_group_arn   = aws_lb_target_group.ds_model_front_end_tg[0].arn
 }
