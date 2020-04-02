@@ -491,6 +491,8 @@ resource "aws_lb_listener" "ds_model_front_end" {
 }
 
 resource "aws_lb_target_group" "ds_model_front_end_tg" {
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+
   target_type = "instance"
   port     = 30080
   protocol = "TCP"
