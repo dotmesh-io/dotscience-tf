@@ -172,8 +172,7 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ecr:TagResource",
                 "ecr:DescribeRepositories",
                 "ecr:ListImages",
-                "ecr:PutImage",
-                "ecr:GetAuthorizationToken"
+                "ecr:PutImage"
             ],
             "Resource": [
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
@@ -186,8 +185,7 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "arn:aws:ec2:${var.region}::image/${local.hub_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.cpu_runner_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}",
-                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
-                "${aws_ecr_repository.ds_registry.arn}"
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*"
             ]
         },
         {
@@ -196,7 +194,8 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ec2:DescribeInstances",
                 "ec2:DescribeTags",
                 "ec2:DescribeVolumes",
-                "ec2:DescribeKeyPairs"
+                "ec2:DescribeKeyPairs",
+                "ecr:GetAuthorizationToken"
             ],
             "Resource": "*"
             },
@@ -411,7 +410,7 @@ resource "aws_ecr_repository_policy" "ds_registry" {
         {
             "Sid": "new policy",
             "Effect": "Allow",
-            "Principal" : { "AWS" : "${data.aws_caller_identity.current.account_id}" },
+            "Principal" : { "AWS" : "*" },
             "Action": [
                 "ecr:GetDownloadUrlForLayer",
                 "ecr:BatchGetImage",
@@ -433,7 +432,7 @@ resource "aws_ecr_repository_policy" "ds_registry" {
 }
 EOF
 }
-
+# "Principal" : { "AWS" : "${data.aws_caller_identity.current.account_id}" },
 data "aws_iam_policy_document" "ds_kms_policy" {
   statement {
     principals {
