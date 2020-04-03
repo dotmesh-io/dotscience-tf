@@ -122,12 +122,12 @@ variable "map_users" {
 
 variable "dotscience_domain" {
   description = "Domain name that you control, in which to deploy dotscience Hub to, eg. dotscience.example-corp.com. Currently defaults to a wildcard DNS server that is maintained by Dotscience"
-  default     = "your.dots.ci"
+  default     = "your.dotscience.net"
 }
 
 variable "model_deployment_domain" {
   description = "Domain name that you control the name servers for, into which model deployments go into. See docs https://docs.dotscience.com/install/tf-aws/"
-  default     = "your.dots.ci"
+  default     = "your.dotscience.net"
 }
 
 variable "webrelay_key" {
@@ -168,6 +168,6 @@ variable "environment" {
 }
 
 variable "model_deployment_mode" {
-  description = "Set to 'aws-eip' to host models on model-abc.1-2-3-4.your.dots.ci or 'route53' to host models on model-abc.your.domain.com"
+  description = "Set to 'aws-eip' to host models on model-abc.1-2-3-4.your.dotscience.net or 'route53' to host models on model-abc.your.domain.com"
   default     = "aws-eip"
 }

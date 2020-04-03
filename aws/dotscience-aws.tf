@@ -559,7 +559,7 @@ resource "aws_lb" "ds_model_nlb" {
   # An NLB to associate with an EIP, pointing to nginx on NodePort on the
   # workers in Kubernetes. We can't express this directly in Kubernetes because
   # K8s 1.15 clusters can't associate NLBs with EIPs (and we need an EIP so that
-  # we can use the *.models.1-2-3-4.your.dots.ci trick).
+  # we can use the *.models.1-2-3-4.your.dotscience.net trick).
 
   load_balancer_type = "network"
 
