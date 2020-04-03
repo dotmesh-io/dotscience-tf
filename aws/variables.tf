@@ -32,6 +32,11 @@ variable "hub_ingress_cidrs" {
   description = "The CIDR block for connections coming into the Hub"
 }
 
+variable "model_ingress_cidrs" {
+  description = "The CIDR block for allowed connections to hosted models"
+  default     = ["0.0.0.0/0"]
+}
+
 variable "letsencrypt_ingress_cidr" {
   description = "The CIDR block for connections coming into the Hub from https://letsencrypt.org/. Let's encrypt servers do not have a whitelist IP set. Set value to '' to restrict all access."
   default     = "0.0.0.0/0"
@@ -163,6 +168,6 @@ variable "environment" {
 }
 
 variable "model_deployment_mode" {
-  description = "Set to 'aws-ga' to host models on model-abc.1-2-3-4.your.dotscience.com or 'route53' to host models on model-abc.your.domain.com"
-  default     = "aws-ga"
+  description = "Set to 'aws-eip' to host models on model-abc.1-2-3-4.your.dots.ci or 'route53' to host models on model-abc.your.domain.com"
+  default     = "aws-eip"
 }
