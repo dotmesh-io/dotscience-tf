@@ -209,17 +209,18 @@ resource "aws_iam_role_policy" "ds_hub_policy" {
                 "ec2:DescribeTags",
                 "ec2:DescribeVolumes",
                 "ec2:DescribeKeyPairs",
-                "ecr:GetAuthorizationToken"
+                "ecr:GetAuthorizationToken",
+                "iam:PassRole"
             ],
             "Resource": "*"
-            },
+       },
        {
             "Effect": "Allow",
             "Action": [
                 "kms:GenerateDataKey"
             ],
             "Resource": "*"
-        }
+       }
     ]
 }
 POLICY
