@@ -1,6 +1,5 @@
 terraform {
   required_version = ">= 0.12.0"
-  experiments      = [variable_validation]
 }
 
 provider "aws" {
@@ -169,9 +168,9 @@ module "eks" {
   map_accounts = var.map_accounts
 }
 
-resource "aws_iam_role_policy" "ds_policy" {
-  name   = "ds-policy-${random_id.default.hex}"
-  role   = aws_iam_role.ds_role.id
+resource "aws_iam_role_policy" "ds_hub_policy" {
+  name   = "ds-hub-policy-${random_id.default.hex}"
+  role   = aws_iam_role.ds_hub_role.id
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -182,7 +181,12 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ec2:AttachVolume",
                 "ec2:TerminateInstances",
                 "ec2:CreateTags",
-                "ec2:RunInstances"
+                "ec2:RunInstances",
+                "ecr:BatchGetImage",
+                "ecr:TagResource",
+                "ecr:DescribeRepositories",
+                "ecr:ListImages",
+                "ecr:PutImage"
             ],
             "Resource": [
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
@@ -194,7 +198,8 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:key-pair/${var.key_name}",
                 "arn:aws:ec2:${var.region}::image/${local.hub_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.cpu_runner_ami}",
-                "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}"
+                "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*"
             ]
         },
         {
@@ -203,14 +208,60 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ec2:DescribeInstances",
                 "ec2:DescribeTags",
                 "ec2:DescribeVolumes",
-                "ec2:DescribeKeyPairs"
+                "ec2:DescribeKeyPairs",
+                "ecr:GetAuthorizationToken",
+                "iam:PassRole"
             ],
             "Resource": "*"
-            },
+       },
        {
             "Effect": "Allow",
             "Action": [
                 "kms:GenerateDataKey"
+            ],
+            "Resource": "*"
+       }
+    ]
+}
+POLICY
+}
+
+resource "aws_iam_role" "ds_hub_role" {
+  name               = "ds-hub-${random_id.default.hex}"
+  path               = "/"
+  assume_role_policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_instance_profile" "ds_runner_profile" {
+  name   = "ds-runner-${random_id.default.hex}"
+  role = aws_iam_role.ds_runner_role.id
+}
+
+
+resource "aws_iam_role_policy" "ds_runner_policy" {
+  name   = "ds-hub-${random_id.default.hex}"
+  role   = aws_iam_role.ds_runner_role.id
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:GetAuthorizationToken"
             ],
             "Resource": "*"
         }
@@ -219,8 +270,8 @@ resource "aws_iam_role_policy" "ds_policy" {
 POLICY
 }
 
-resource "aws_iam_role" "ds_role" {
-  name               = "ds-role-${random_id.default.hex}"
+resource "aws_iam_role" "ds_runner_role" {
+  name               = "ds-runner-${random_id.default.hex}"
   path               = "/"
   assume_role_policy = <<POLICY
 {
@@ -241,7 +292,7 @@ POLICY
 resource "aws_iam_instance_profile" "ds_instance_profile" {
   name = "ds-instance-profile-${random_id.default.hex}"
   path = "/"
-  role = aws_iam_role.ds_role.id
+  role = aws_iam_role.ds_hub_role.id
 }
 
 resource "aws_security_group" "ds_runner_security_group" {
@@ -385,7 +436,7 @@ resource "aws_instance" "ds_hub" {
               echo "Starting Dotscience hub"  
               sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/${var.dotscience_startup_version}/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}"
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}" --repository-url "${aws_ecr_repository.ds_registry.repository_url}" --runner-iam-profile-arn "${aws_iam_instance_profile.ds_runner_profile.arn}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
@@ -401,6 +452,46 @@ resource "aws_instance" "ds_hub" {
   }
 }
 
+resource "aws_ecr_repository" "ds_registry" {
+  name = local.cluster_name
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+resource "aws_ecr_repository_policy" "ds_registry" {
+  repository = aws_ecr_repository.ds_registry.name
+  policy     = <<EOF
+{
+    "Version": "2008-10-17",
+    "Statement": [
+        {
+            "Sid": "new policy",
+            "Effect": "Allow",
+            "Principal" : { "AWS" : "*" },
+            "Action": [
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:PutImage",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload",
+                "ecr:DescribeRepositories",
+                "ecr:GetRepositoryPolicy",
+                "ecr:ListImages",
+                "ecr:DeleteRepository",
+                "ecr:BatchDeleteImage",
+                "ecr:SetRepositoryPolicy",
+                "ecr:DeleteRepositoryPolicy"
+            ]
+        }
+    ]
+}
+EOF
+}
+# "Principal" : { "AWS" : "${data.aws_caller_identity.current.account_id}" },
 data "aws_iam_policy_document" "ds_kms_policy" {
   statement {
     principals {
