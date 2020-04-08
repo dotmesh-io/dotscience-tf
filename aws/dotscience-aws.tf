@@ -461,7 +461,7 @@ resource "aws_ecr_repository_policy" "ds_registry" {
         {
             "Sid": "new policy",
             "Effect": "Allow",
-            "Principal" : { "AWS" : "*" },
+            "Principal" : { "AWS" : "${data.aws_caller_identity.current.account_id}", "AWS": "${aws_iam_role.ds_runner_role.arn}" },
             "Action": [
                 "ecr:GetDownloadUrlForLayer",
                 "ecr:BatchGetImage",
@@ -483,7 +483,7 @@ resource "aws_ecr_repository_policy" "ds_registry" {
 }
 EOF
 }
-# "Principal" : { "AWS" : "${data.aws_caller_identity.current.account_id}" },
+
 data "aws_iam_policy_document" "ds_kms_policy" {
   statement {
     principals {
