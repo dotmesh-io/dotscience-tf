@@ -42,6 +42,11 @@ variable "letsencrypt_ingress_cidr" {
   default     = "0.0.0.0/0"
 }
 
+variable "remote_runner_ingress_cidrs" {
+  description = "The CIDR list for connections coming into the Hub from remote runners, specifically those not provisioned by AWS."
+  default     = []
+}
+
 variable "hub_volume_size" {
   description = "The storage volume size in GB used for the Dotscience Hub. Must be larger than 128."
   type        = number

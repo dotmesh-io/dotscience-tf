@@ -246,7 +246,7 @@ POLICY
 }
 
 resource "aws_iam_instance_profile" "ds_runner_profile" {
-  name   = "ds-runner-${random_id.default.hex}"
+  name = "ds-runner-${random_id.default.hex}"
   role = aws_iam_role.ds_runner_role.id
 }
 
@@ -357,7 +357,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 8800
     to_port     = 8800
     protocol    = "tcp"
-    cidr_blocks = concat(local.nat_cidrs, [var.vpc_network_cidr])
+    cidr_blocks = [for x in distinct(concat(local.nat_cidrs, [var.vpc_network_cidr], var.remote_runner_ingress_cidrs)) : x if x != ""]
     description = "Access to the Dotscience API gateway"
   }
 
@@ -547,7 +547,7 @@ resource "aws_eip" "ds_model_eip" {
 
 resource "aws_lb" "ds_model_nlb" {
   count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
-  
+
   # An NLB to associate with an EIP, pointing to nginx on NodePort on the
   # workers in Kubernetes. We can't express this directly in Kubernetes because
   # K8s 1.15 clusters can't associate NLBs with EIPs (and we need an EIP so that
@@ -563,7 +563,7 @@ resource "aws_lb" "ds_model_nlb" {
 
 resource "aws_lb_listener" "ds_model_front_end" {
   count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
-  
+
   load_balancer_arn = aws_lb.ds_model_nlb[0].arn
   port              = "80"
   protocol          = "TCP"
@@ -577,9 +577,9 @@ resource "aws_lb_target_group" "ds_model_front_end_tg" {
   count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
 
   target_type = "instance"
-  port     = 30080
-  protocol = "TCP"
-  vpc_id   = module.vpc.vpc_id
+  port        = 30080
+  protocol    = "TCP"
+  vpc_id      = module.vpc.vpc_id
 
   lifecycle {
     create_before_destroy = true
@@ -587,7 +587,7 @@ resource "aws_lb_target_group" "ds_model_front_end_tg" {
 }
 
 resource "aws_autoscaling_attachment" "asg_attachment_bar" {
-  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+  count                  = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
   autoscaling_group_name = module.eks.workers_asg_names[0]
   alb_target_group_arn   = aws_lb_target_group.ds_model_front_end_tg[0].arn
 }
