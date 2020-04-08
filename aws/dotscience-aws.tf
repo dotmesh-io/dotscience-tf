@@ -333,7 +333,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr], var.hub_ingress_cidrs, local.nat_cidrs)) : x if x != ""]
+    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr], var.hub_ingress_cidrs, local.nat_cidrs, var.remote_runner_ingress_cidrs)) : x if x != ""]
     description = "Access to the Dotscience Hub web UI for the browser and from NAT gateway of the runners to the hub for Dotmesh"
   }
 
@@ -341,7 +341,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr], var.hub_ingress_cidrs, local.nat_cidrs)) : x if x != ""]
+    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr], var.hub_ingress_cidrs, local.nat_cidrs, var.remote_runner_ingress_cidrs)) : x if x != ""]
     description = "Access to the Dotscience Hub web UI for the browser and from NAT gateway of the runners to the hub for Dotmesh"
   }
 
@@ -365,7 +365,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 9800
     to_port     = 9800
     protocol    = "tcp"
-    cidr_blocks = concat(local.nat_cidrs, [var.vpc_network_cidr])
+    cidr_blocks = [for x in distinct(concat(local.nat_cidrs, [var.vpc_network_cidr], var.remote_runner_ingress_cidrs)) : x if x != ""]
     description = "Dotscience webhook relay transponder connections"
   }
 
