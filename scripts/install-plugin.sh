@@ -34,3 +34,4 @@ fi
 
 mkdir -p $PLUGIN_DIRECTORY
 curl --fail -L -o $PLUGIN_PATH $URL
+chmod a+x $PLUGIN_PATH
