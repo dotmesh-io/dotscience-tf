@@ -25,6 +25,7 @@ resource "random_id" "deployer_token" {
 
 locals {
   hub_hostname             = join("", ["hub-", replace(google_compute_address.hub_ipv4_address.address, ".", "-"), ".", var.dotscience_domain])
+  hub_url                  = join("", ["https://", local.hub_hostname])
   hub_ip                   = google_compute_address.hub_ipv4_address.address
   deployer_model_subdomain = var.create_deployer && var.create_gke ? join("", [".models-", replace(element(concat(module.ds_deployer.ingress_host, list("")), 0), ".", "-"), ".", var.dotscience_domain]) : ""
   zone                     = var.zone
@@ -52,6 +53,17 @@ module "ds_monitoring" {
   cluster_ca_certificate = base64decode(element(concat(google_container_cluster.dotscience_deployer[*].master_auth.0.cluster_ca_certificate, list("")), 0))
   kubernetes_token       = element(concat(data.google_client_config.default[*].access_token, list("")), 0)
   dotscience_environment = "gcp"
+}
+
+module "ds_runners" {
+  source                 = "../modules/ds_runners"
+  hub_public_url         = local.hub_url
+  hub_admin_password     = var.admin_password
+  runners_depends_on     = [
+    google_compute_instance.dotscience_hub_vm,
+    google_compute_attached_disk.default,
+    google_compute_network.dotscience_network
+  ]
 }
 
 # data "http" "gcp-machine-image" {
