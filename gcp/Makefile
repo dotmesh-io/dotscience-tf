@@ -1,3 +1,6 @@
+install-plugin:
+	bash ../scripts/install-plugin.sh
+
 validate:
 	terraform validate
 
@@ -11,7 +14,7 @@ apply:
 destroy:
 	terraform destroy -var-file=inputs.tfvars -auto-approve
 
-init:
+init: install-plugin
 	terraform init
 
 plan:

@@ -1,5 +1,5 @@
 output "hub_public_url" {
-  value = join("", ["https://", local.hub_hostname])
+  value = local.hub_url
 }
 
 output "hub_public_ip" {

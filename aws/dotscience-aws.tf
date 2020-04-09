@@ -39,6 +39,7 @@ data "aws_caller_identity" "current" {}
 
 locals {
   hub_hostname             = join("", ["hub-", replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  hub_url                  = join("", ["https://", local.hub_hostname])
   hub_ip                   = aws_eip.ds_eip.public_ip
   hub_subnet               = module.vpc.public_subnets[0]
   runner_subnet            = module.vpc.private_subnets[0]
@@ -115,6 +116,18 @@ module "ds_monitoring" {
   cluster_ca_certificate = base64decode(element(concat(data.aws_eks_cluster.cluster[*].certificate_authority.0.data, list("")), 0))
   kubernetes_token       = element(concat(data.aws_eks_cluster_auth.cluster[*].token, list("")), 0)
   dotscience_environment = "aws"
+}
+
+module "ds_runners" {
+  source                 = "../modules/ds_runners"
+  hub_public_url         = local.hub_url
+  hub_admin_password     = var.admin_password
+  runners_depends_on     = [
+    aws_instance.ds_hub,
+    aws_eip_association.eip_assoc,
+    aws_eip.ds_eip,
+    module.vpc
+  ]
 }
 
 
