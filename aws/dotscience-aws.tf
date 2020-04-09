@@ -1,6 +1,5 @@
 terraform {
   required_version = ">= 0.12.0"
-  experiments      = [variable_validation]
 }
 
 provider "aws" {
@@ -52,9 +51,7 @@ locals {
   cpu_runner_ami           = var.amis[var.region].CPURunner
   gpu_runner_ami           = var.amis[var.region].GPURunner
   nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
-  ingress_elb_arn_type     = var.create_deployer && var.create_eks ? split("-", local.ingress_elb_name)[0] : ""
-  ingress_elb_arn_id       = var.create_deployer && var.create_eks ? split(".", (split("-", local.ingress_elb_name)[1]))[0] : ""
-  deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? join("", ["model-", replace(aws_globalaccelerator_accelerator.ds_model_ingress[0].ip_sets[0].ip_addresses[0], ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
+  deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -133,6 +130,22 @@ module "ds_runners" {
   ]
 }
 
+
+resource "aws_security_group" "eks_additional_ingress_security_group" {
+  name        = "eks-additional-ingress-sg-${random_id.default.hex}"
+  description = "SG for EKS workers"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 30080
+    to_port     = 30080
+    protocol    = "tcp"
+    cidr_blocks = var.model_ingress_cidrs
+    description = "access model ingress"
+  }
+}
+
+
 module "eks" {
   source                               = "terraform-aws-modules/eks/aws"
   cluster_name                         = "eks-${local.cluster_name}"
@@ -144,6 +157,7 @@ module "eks" {
   cluster_endpoint_private_access      = true
   cluster_endpoint_public_access       = true
   cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
+  worker_additional_security_group_ids = [aws_security_group.eks_additional_ingress_security_group.id]
 
   tags = {
     Environment = local.cluster_name
@@ -167,9 +181,9 @@ module "eks" {
   map_accounts = var.map_accounts
 }
 
-resource "aws_iam_role_policy" "ds_policy" {
-  name   = "ds-policy-${random_id.default.hex}"
-  role   = aws_iam_role.ds_role.id
+resource "aws_iam_role_policy" "ds_hub_policy" {
+  name   = "ds-hub-policy-${random_id.default.hex}"
+  role   = aws_iam_role.ds_hub_role.id
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -180,7 +194,12 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ec2:AttachVolume",
                 "ec2:TerminateInstances",
                 "ec2:CreateTags",
-                "ec2:RunInstances"
+                "ec2:RunInstances",
+                "ecr:BatchGetImage",
+                "ecr:TagResource",
+                "ecr:DescribeRepositories",
+                "ecr:ListImages",
+                "ecr:PutImage"
             ],
             "Resource": [
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
@@ -192,7 +211,8 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:key-pair/${var.key_name}",
                 "arn:aws:ec2:${var.region}::image/${local.hub_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.cpu_runner_ami}",
-                "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}"
+                "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}",
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*"
             ]
         },
         {
@@ -201,14 +221,60 @@ resource "aws_iam_role_policy" "ds_policy" {
                 "ec2:DescribeInstances",
                 "ec2:DescribeTags",
                 "ec2:DescribeVolumes",
-                "ec2:DescribeKeyPairs"
+                "ec2:DescribeKeyPairs",
+                "ecr:GetAuthorizationToken",
+                "iam:PassRole"
             ],
             "Resource": "*"
-            },
+       },
        {
             "Effect": "Allow",
             "Action": [
                 "kms:GenerateDataKey"
+            ],
+            "Resource": "*"
+       }
+    ]
+}
+POLICY
+}
+
+resource "aws_iam_role" "ds_hub_role" {
+  name               = "ds-hub-${random_id.default.hex}"
+  path               = "/"
+  assume_role_policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_instance_profile" "ds_runner_profile" {
+  name = "ds-runner-${random_id.default.hex}"
+  role = aws_iam_role.ds_runner_role.id
+}
+
+
+resource "aws_iam_role_policy" "ds_runner_policy" {
+  name   = "ds-hub-${random_id.default.hex}"
+  role   = aws_iam_role.ds_runner_role.id
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:GetAuthorizationToken"
             ],
             "Resource": "*"
         }
@@ -217,8 +283,8 @@ resource "aws_iam_role_policy" "ds_policy" {
 POLICY
 }
 
-resource "aws_iam_role" "ds_role" {
-  name               = "ds-role-${random_id.default.hex}"
+resource "aws_iam_role" "ds_runner_role" {
+  name               = "ds-runner-${random_id.default.hex}"
   path               = "/"
   assume_role_policy = <<POLICY
 {
@@ -239,7 +305,7 @@ POLICY
 resource "aws_iam_instance_profile" "ds_instance_profile" {
   name = "ds-instance-profile-${random_id.default.hex}"
   path = "/"
-  role = aws_iam_role.ds_role.id
+  role = aws_iam_role.ds_hub_role.id
 }
 
 resource "aws_security_group" "ds_runner_security_group" {
@@ -280,16 +346,16 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr], var.hub_ingress_cidrs)) : x if x != ""]
-    description = "Access to the Dotscience Hub web UI for the browser"
+    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr], var.hub_ingress_cidrs, local.nat_cidrs, var.remote_runner_ingress_cidrs)) : x if x != ""]
+    description = "Access to the Dotscience Hub web UI for the browser and from NAT gateway of the runners to the hub for Dotmesh"
   }
 
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr], var.hub_ingress_cidrs)) : x if x != ""]
-    description = "Access to the Dotscience Hub web UI for the browser"
+    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr], var.hub_ingress_cidrs, local.nat_cidrs, var.remote_runner_ingress_cidrs)) : x if x != ""]
+    description = "Access to the Dotscience Hub web UI for the browser and from NAT gateway of the runners to the hub for Dotmesh"
   }
 
   ingress {
@@ -304,7 +370,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 8800
     to_port     = 8800
     protocol    = "tcp"
-    cidr_blocks = concat(local.nat_cidrs, [var.vpc_network_cidr])
+    cidr_blocks = [for x in distinct(concat(local.nat_cidrs, [var.vpc_network_cidr], var.remote_runner_ingress_cidrs)) : x if x != ""]
     description = "Access to the Dotscience API gateway"
   }
 
@@ -312,16 +378,8 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 9800
     to_port     = 9800
     protocol    = "tcp"
-    cidr_blocks = concat(local.nat_cidrs, [var.vpc_network_cidr])
+    cidr_blocks = [for x in distinct(concat(local.nat_cidrs, [var.vpc_network_cidr], var.remote_runner_ingress_cidrs)) : x if x != ""]
     description = "Dotscience webhook relay transponder connections"
-  }
-
-  ingress {
-    from_port   = 32607
-    to_port     = 32607
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_network_cidr]
-    description = "Access to the Dotmesh server API"
   }
 
   egress {
@@ -383,7 +441,7 @@ resource "aws_instance" "ds_hub" {
               echo "Starting Dotscience hub"  
               sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/${var.dotscience_startup_version}/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}"
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}" --repository-url "${aws_ecr_repository.ds_registry.repository_url}" --runner-iam-profile-arn "${aws_iam_instance_profile.ds_runner_profile.arn}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
@@ -397,6 +455,46 @@ resource "aws_instance" "ds_hub" {
   tags = {
     Name = "ds-hub-${local.cluster_name}-${random_id.default.hex}"
   }
+}
+
+resource "aws_ecr_repository" "ds_registry" {
+  name = local.cluster_name
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+resource "aws_ecr_repository_policy" "ds_registry" {
+  repository = aws_ecr_repository.ds_registry.name
+  policy     = <<EOF
+{
+    "Version": "2008-10-17",
+    "Statement": [
+        {
+            "Sid": "new policy",
+            "Effect": "Allow",
+            "Principal" : { "AWS" : "${data.aws_caller_identity.current.account_id}", "AWS": "${aws_iam_role.ds_runner_role.arn}" },
+            "Action": [
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:PutImage",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload",
+                "ecr:DescribeRepositories",
+                "ecr:GetRepositoryPolicy",
+                "ecr:ListImages",
+                "ecr:DeleteRepository",
+                "ecr:BatchDeleteImage",
+                "ecr:SetRepositoryPolicy",
+                "ecr:DeleteRepositoryPolicy"
+            ]
+        }
+    ]
+}
+EOF
 }
 
 data "aws_iam_policy_document" "ds_kms_policy" {
@@ -455,34 +553,54 @@ resource "aws_route53_record" "model_deployments_domain_ns" {
   records = aws_route53_zone.model_deployments_subdomain[0].name_servers
 }
 
-
-resource "aws_globalaccelerator_accelerator" "ds_model_ingress" {
-  name            = "Model"
-  ip_address_type = "IPV4"
-  enabled         = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? true : false
-  count           = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+resource "aws_eip" "ds_model_eip" {
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+  vpc   = true
 }
 
-resource "aws_globalaccelerator_endpoint_group" "ds_model_ingress" {
-  listener_arn = aws_globalaccelerator_listener.ds_model_ingress[0].id
-  endpoint_configuration {
-    endpoint_id = join("", concat(["arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/"], [local.ingress_elb_arn_type, "/", local.ingress_elb_arn_id]))
-    weight      = 100
+resource "aws_lb" "ds_model_nlb" {
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+
+  # An NLB to associate with an EIP, pointing to nginx on NodePort on the
+  # workers in Kubernetes. We can't express this directly in Kubernetes because
+  # K8s 1.15 clusters can't associate NLBs with EIPs (and we need an EIP so that
+  # we can use the *.models.1-2-3-4.your.dotscience.net trick).
+
+  load_balancer_type = "network"
+
+  subnet_mapping {
+    subnet_id     = module.vpc.public_subnets[0]
+    allocation_id = aws_eip.ds_model_eip[0].id
   }
-  health_check_path             = "/"
-  health_check_port             = 80
-  health_check_interval_seconds = 30
-  count                         = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
 }
 
-resource "aws_globalaccelerator_listener" "ds_model_ingress" {
-  accelerator_arn = aws_globalaccelerator_accelerator.ds_model_ingress[0].id
-  client_affinity = "SOURCE_IP"
-  protocol        = "TCP"
-  count           = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-ga" ? 1 : 0
+resource "aws_lb_listener" "ds_model_front_end" {
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
 
-  port_range {
-    from_port = 80
-    to_port   = 80
+  load_balancer_arn = aws_lb.ds_model_nlb[0].arn
+  port              = "80"
+  protocol          = "TCP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ds_model_front_end_tg[0].arn
   }
+}
+
+resource "aws_lb_target_group" "ds_model_front_end_tg" {
+  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+
+  target_type = "instance"
+  port        = 30080
+  protocol    = "TCP"
+  vpc_id      = module.vpc.vpc_id
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_autoscaling_attachment" "asg_attachment_bar" {
+  count                  = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+  autoscaling_group_name = module.eks.workers_asg_names[0]
+  alb_target_group_arn   = aws_lb_target_group.ds_model_front_end_tg[0].arn
 }

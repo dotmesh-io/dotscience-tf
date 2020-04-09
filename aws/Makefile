@@ -1,3 +1,6 @@
+init:
+	terraform init
+
 validate:
 	terraform validate
 
@@ -9,3 +12,6 @@ plan:
 
 destroy:
 	terraform destroy -var-file=inputs.tfvars -auto-approve
+
+clean:
+	rm -rf .terraform terraform.tfstate terraform.tfstate.*

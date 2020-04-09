@@ -32,9 +32,19 @@ variable "hub_ingress_cidrs" {
   description = "The CIDR block for connections coming into the Hub"
 }
 
+variable "model_ingress_cidrs" {
+  description = "The CIDR block for allowed connections to hosted models"
+  default     = ["0.0.0.0/0"]
+}
+
 variable "letsencrypt_ingress_cidr" {
   description = "The CIDR block for connections coming into the Hub from https://letsencrypt.org/. Let's encrypt servers do not have a whitelist IP set. Set value to '' to restrict all access."
   default     = "0.0.0.0/0"
+}
+
+variable "remote_runner_ingress_cidrs" {
+  description = "The CIDR list for connections coming into the Hub from remote runners, specifically those not provisioned by AWS."
+  default     = []
 }
 
 variable "hub_volume_size" {
@@ -117,12 +127,12 @@ variable "map_users" {
 
 variable "dotscience_domain" {
   description = "Domain name that you control, in which to deploy dotscience Hub to, eg. dotscience.example-corp.com. Currently defaults to a wildcard DNS server that is maintained by Dotscience"
-  default     = "your.dots.ci"
+  default     = "your.dotscience.net"
 }
 
 variable "model_deployment_domain" {
   description = "Domain name that you control the name servers for, into which model deployments go into. See docs https://docs.dotscience.com/install/tf-aws/"
-  default     = "your.dots.ci"
+  default     = "your.dotscience.net"
 }
 
 variable "webrelay_key" {
@@ -163,11 +173,6 @@ variable "environment" {
 }
 
 variable "model_deployment_mode" {
-  description = "Set to 'aws-ga' to host models on model-abc.1-2-3-4.your.dots.ci or 'route53' to host models on model-abc.your.domain.com"
-  default     = "aws-ga"
-
-  validation {
-    condition     = var.model_deployment_mode == "aws-ga" || var.model_deployment_mode == "route53"
-    error_message = "Set to 'aws-ga' to host models on model-abc.1-2-3-4.your.dots.ci or 'route53' to host models on model-abc.your.domain.com."
-  }
+  description = "Set to 'aws-eip' to host models on model-abc.1-2-3-4.your.dotscience.net or 'route53' to host models on model-abc.your.domain.com"
+  default     = "aws-eip"
 }

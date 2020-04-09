@@ -10,3 +10,12 @@ apply:
 	
 destroy:
 	terraform destroy -var-file=inputs.tfvars -auto-approve
+
+init:
+	terraform init
+
+plan:
+	terraform plan -var-file=inputs.tfvars
+
+clean:
+	rm -rf .terraform terraform.tfstate terraform.tfstate.*
