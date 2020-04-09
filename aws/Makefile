@@ -1,4 +1,7 @@
-init:
+install-plugin:
+	bash ../scripts/install-plugin.sh
+
+init: install-plugin
 	terraform init
 
 validate:
