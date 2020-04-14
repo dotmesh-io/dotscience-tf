@@ -38,7 +38,6 @@ data "aws_availability_zone" "regional_az" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  hub_hostname             = join("", ["hub-", replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
   hub_ip                   = aws_eip.ds_eip.public_ip
   hub_subnet               = module.vpc.public_subnets[0]
   runner_subnet            = module.vpc.private_subnets[0]
@@ -51,6 +50,10 @@ locals {
   gpu_runner_ami           = var.amis[var.region].GPURunner
   nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
   deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
+  route53_hub_hostname     = "${local.cluster_name}.${var.hub_route53_domain}"
+  default_hub_hostname     = join("", ["hub-", replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  route53_zone_id          = var.tls_config_mode == "dns_route53" ? aws_route53_zone.ds_hub_subdomain[0].zone_id : ""
+  hub_hostname             = var.tls_config_mode == "dns_route53" ? local.route53_hub_hostname : local.default_hub_hostname
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -210,7 +213,8 @@ resource "aws_iam_role_policy" "ds_hub_policy" {
                 "ec2:DescribeVolumes",
                 "ec2:DescribeKeyPairs",
                 "ecr:GetAuthorizationToken",
-                "iam:PassRole"
+                "iam:PassRole",
+                "route53:*"
             ],
             "Resource": "*"
        },
@@ -428,7 +432,7 @@ resource "aws_instance" "ds_hub" {
               echo "Starting Dotscience hub"  
               sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/${var.dotscience_startup_version}/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}" --repository-url "${aws_ecr_repository.ds_registry.repository_url}" --runner-iam-profile-arn "${aws_iam_instance_profile.ds_runner_profile.arn}"
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}" --repository-url "${aws_ecr_repository.ds_registry.repository_url}" --runner-iam-profile-arn "${aws_iam_instance_profile.ds_runner_profile.arn}" --tls_config_mode "${var.tls_config_mode}" --aws-route53-zone-id "${local.route53_zone_id}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
@@ -590,4 +594,32 @@ resource "aws_autoscaling_attachment" "asg_attachment_bar" {
   count                  = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
   autoscaling_group_name = module.eks.workers_asg_names[0]
   alb_target_group_arn   = aws_lb_target_group.ds_model_front_end_tg[0].arn
+}
+
+data "aws_route53_zone" "ds_domain" {
+  count = var.tls_config_mode == "dns_route53" ? 1 : 0
+  name  = var.hub_route53_domain
+}
+
+resource "aws_route53_zone" "ds_hub_subdomain" {
+  count = var.tls_config_mode == "dns_route53" ? 1 : 0
+  name  = local.route53_hub_hostname
+}
+
+resource "aws_route53_record" "ds_hub_subdomain_ns" {
+  count   = var.tls_config_mode == "dns_route53" ? 1 : 0
+  zone_id = data.aws_route53_zone.ds_domain[0].zone_id
+  name    = local.route53_hub_hostname
+  type    = "NS"
+  ttl     = "60"
+  records = aws_route53_zone.ds_hub_subdomain[0].name_servers
+}
+
+resource "aws_route53_record" "ds_hub_subdomain" {
+  count   = var.tls_config_mode == "dns_route53" ? 1 : 0
+  zone_id = aws_route53_zone.ds_hub_subdomain[0].zone_id
+  name    = local.route53_hub_hostname
+  type    = "A"
+  ttl     = "10"
+  records = [aws_eip.ds_eip.public_ip]
 }

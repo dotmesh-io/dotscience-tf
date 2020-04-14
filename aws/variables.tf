@@ -176,3 +176,13 @@ variable "model_deployment_mode" {
   description = "Set to 'aws-eip' to host models on model-abc.1-2-3-4.your.dotscience.net or 'route53' to host models on model-abc.your.domain.com"
   default     = "aws-eip"
 }
+
+variable "tls_config_mode" {
+  description = "TLS configuration can be set to 'http' or 'dns_route53'"
+  default     = "http"
+}
+
+variable "hub_route53_domain" {
+  description = "Route53 domain that you control"
+  default     = ""
+}
