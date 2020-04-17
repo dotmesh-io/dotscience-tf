@@ -186,3 +186,8 @@ variable "hub_route53_domain" {
   description = "Route53 root domain that you control"
   default     = ""
 }
+
+variable "associate_public_ip" {
+  description = "Route53 root domain that you control"
+  default     = true
+}

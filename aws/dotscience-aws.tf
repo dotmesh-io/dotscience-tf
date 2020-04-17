@@ -38,7 +38,7 @@ data "aws_availability_zone" "regional_az" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  hub_ip                   = aws_eip.ds_eip.public_ip
+  hub_ip                   = var.associate_public_ip ? aws_eip.ds_eip[0].public_ip : aws_instance.ds_hub.private_ip
   hub_subnet               = module.vpc.public_subnets[0]
   runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
@@ -51,7 +51,7 @@ locals {
   nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
   deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
   route53_hub_hostname     = "${var.environment}.${var.hub_route53_domain}"
-  default_hub_hostname     = join("", ["hub-", replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
+  default_hub_hostname     = var.associate_public_ip ? join("", ["hub-", replace(aws_eip.ds_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : ""
   route53_zone_id          = var.tls_config_mode == "dns_route53" ? aws_route53_zone.ds_hub_subdomain[0].zone_id : ""
   hub_hostname             = var.tls_config_mode == "dns_route53" ? local.route53_hub_hostname : local.default_hub_hostname
 }
@@ -383,12 +383,14 @@ resource "aws_security_group" "ds_hub_security_group" {
 }
 
 resource "aws_eip_association" "eip_assoc" {
+  count         = var.associate_public_ip ? 1 : 0
   instance_id   = aws_instance.ds_hub.id
-  allocation_id = aws_eip.ds_eip.id
+  allocation_id = aws_eip.ds_eip[0].id
 }
 
 resource "aws_eip" "ds_eip" {
-  vpc = true
+  count = var.associate_public_ip ? 1 : 0
+  vpc   = true
 }
 
 resource "aws_ebs_volume" "ds_hub_volume" {
@@ -408,9 +410,9 @@ resource "aws_instance" "ds_hub" {
   key_name             = var.key_name
   subnet_id            = local.hub_subnet
 
-  vpc_security_group_ids      = [aws_security_group.ds_hub_security_group.id]
-  associate_public_ip_address = true
-  ebs_optimized               = false
+  vpc_security_group_ids = [aws_security_group.ds_hub_security_group.id]
+  ebs_optimized          = false
+  associate_public_ip_address = var.associate_public_ip ? true : false
 
   depends_on = [aws_security_group.ds_hub_security_group,
     aws_ebs_volume.ds_hub_volume,
@@ -621,5 +623,5 @@ resource "aws_route53_record" "ds_hub_subdomain" {
   name    = local.route53_hub_hostname
   type    = "A"
   ttl     = "10"
-  records = [aws_eip.ds_eip.public_ip]
+  records = [local.hub_ip]
 }
