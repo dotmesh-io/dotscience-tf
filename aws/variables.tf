@@ -183,6 +183,6 @@ variable "tls_config_mode" {
 }
 
 variable "hub_route53_domain" {
-  description = "Route53 domain that you control"
+  description = "Route53 root domain that you control"
   default     = ""
 }

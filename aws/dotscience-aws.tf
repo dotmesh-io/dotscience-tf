@@ -50,7 +50,7 @@ locals {
   gpu_runner_ami           = var.amis[var.region].GPURunner
   nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
   deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
-  route53_hub_hostname     = "${local.cluster_name}.${var.hub_route53_domain}"
+  route53_hub_hostname     = "${var.environment}.${var.hub_route53_domain}"
   default_hub_hostname     = join("", ["hub-", replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
   route53_zone_id          = var.tls_config_mode == "dns_route53" ? aws_route53_zone.ds_hub_subdomain[0].zone_id : ""
   hub_hostname             = var.tls_config_mode == "dns_route53" ? local.route53_hub_hostname : local.default_hub_hostname
