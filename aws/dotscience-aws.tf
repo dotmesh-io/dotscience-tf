@@ -38,9 +38,8 @@ data "aws_availability_zone" "regional_az" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  hub_hostname             = join("", ["hub-", replace(aws_eip.ds_eip.public_ip, ".", "-"), ".", var.dotscience_domain])
   hub_url                  = join("", ["https://", local.hub_hostname])
-  hub_ip                   = aws_eip.ds_eip.public_ip
+  hub_ip                   = var.associate_public_ip ? aws_eip.ds_eip[0].public_ip : aws_instance.ds_hub.private_ip
   hub_subnet               = module.vpc.public_subnets[0]
   runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
@@ -52,6 +51,10 @@ locals {
   gpu_runner_ami           = var.amis[var.region].GPURunner
   nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
   deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
+  route53_hub_hostname     = "${var.environment}.${var.hub_route53_domain}"
+  default_hub_hostname     = var.associate_public_ip ? join("", ["hub-", replace(aws_eip.ds_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : ""
+  route53_zone_id          = var.tls_config_mode == "dns_route53" ? aws_route53_zone.ds_hub_subdomain[0].zone_id : ""
+  hub_hostname             = var.tls_config_mode == "dns_route53" ? local.route53_hub_hostname : local.default_hub_hostname
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -119,10 +122,10 @@ module "ds_monitoring" {
 }
 
 module "ds_runners" {
-  source                 = "../modules/ds_runners"
-  hub_public_url         = local.hub_url
-  hub_admin_password     = var.admin_password
-  runners_depends_on     = [
+  source             = "../modules/ds_runners"
+  hub_public_url     = local.hub_url
+  hub_admin_password = var.admin_password
+  runners_depends_on = [
     aws_instance.ds_hub,
     aws_eip_association.eip_assoc,
     aws_eip.ds_eip,
@@ -181,9 +184,8 @@ module "eks" {
   map_accounts = var.map_accounts
 }
 
-resource "aws_iam_role_policy" "ds_hub_policy" {
+resource "aws_iam_policy" "ds_hub_policy" {
   name   = "ds-hub-policy-${random_id.default.hex}"
-  role   = aws_iam_role.ds_hub_role.id
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -195,6 +197,7 @@ resource "aws_iam_role_policy" "ds_hub_policy" {
                 "ec2:TerminateInstances",
                 "ec2:CreateTags",
                 "ec2:RunInstances",
+                "ec2:TerminateInstances",
                 "ecr:BatchGetImage",
                 "ecr:TagResource",
                 "ecr:DescribeRepositories",
@@ -223,7 +226,8 @@ resource "aws_iam_role_policy" "ds_hub_policy" {
                 "ec2:DescribeVolumes",
                 "ec2:DescribeKeyPairs",
                 "ecr:GetAuthorizationToken",
-                "iam:PassRole"
+                "iam:PassRole",
+                "route53:*"
             ],
             "Resource": "*"
        },
@@ -258,15 +262,19 @@ resource "aws_iam_role" "ds_hub_role" {
 POLICY
 }
 
+resource "aws_iam_role_policy_attachment" "ds_hub" {
+  role       = aws_iam_role.ds_hub_role.name
+  policy_arn = aws_iam_policy.ds_hub_policy.arn
+}
+
 resource "aws_iam_instance_profile" "ds_runner_profile" {
   name = "ds-runner-${random_id.default.hex}"
   role = aws_iam_role.ds_runner_role.id
 }
 
 
-resource "aws_iam_role_policy" "ds_runner_policy" {
+resource "aws_iam_policy" "ds_runner_policy" {
   name   = "ds-hub-${random_id.default.hex}"
-  role   = aws_iam_role.ds_runner_role.id
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -300,6 +308,12 @@ resource "aws_iam_role" "ds_runner_role" {
   ]
 }
 POLICY
+}
+
+
+resource "aws_iam_role_policy_attachment" "ds_runner" {
+  role       = aws_iam_role.ds_runner_role.name
+  policy_arn = aws_iam_policy.ds_runner_policy.arn
 }
 
 resource "aws_iam_instance_profile" "ds_instance_profile" {
