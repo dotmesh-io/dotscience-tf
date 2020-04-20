@@ -194,7 +194,6 @@ resource "aws_iam_policy" "ds_hub_policy" {
             "Effect": "Allow",
             "Action": [
                 "ec2:AttachVolume",
-                "ec2:TerminateInstances",
                 "ec2:CreateTags",
                 "ec2:RunInstances",
                 "ec2:TerminateInstances",
