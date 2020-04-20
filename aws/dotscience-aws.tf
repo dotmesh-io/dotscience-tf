@@ -188,7 +188,10 @@ resource "aws_iam_policy" "ds_hub_policy" {
                 "ecr:TagResource",
                 "ecr:DescribeRepositories",
                 "ecr:ListImages",
-                "ecr:PutImage"
+                "ecr:PutImage",
+                "route53:GetChange",
+                "route53:ChangeResourceRecordSets",
+                "route53:ListResourceRecordSets"
             ],
             "Resource": [
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
@@ -201,7 +204,9 @@ resource "aws_iam_policy" "ds_hub_policy" {
                 "arn:aws:ec2:${var.region}::image/${local.hub_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.cpu_runner_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}",
-                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*"
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
+                "arn:aws:route53:::hostedzone/*",
+                "arn:aws:route53:::change/*"
             ]
         },
         {
@@ -213,7 +218,7 @@ resource "aws_iam_policy" "ds_hub_policy" {
                 "ec2:DescribeKeyPairs",
                 "ecr:GetAuthorizationToken",
                 "iam:PassRole",
-                "route53:*"
+                "route53:ListHostedZonesByName"
             ],
             "Resource": "*"
        },
