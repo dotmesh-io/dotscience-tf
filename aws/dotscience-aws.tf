@@ -171,9 +171,8 @@ module "eks" {
   map_accounts = var.map_accounts
 }
 
-resource "aws_iam_role_policy" "ds_hub_policy" {
+resource "aws_iam_policy" "ds_hub_policy" {
   name   = "ds-hub-policy-${random_id.default.hex}"
-  role   = aws_iam_role.ds_hub_role.id
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -249,15 +248,18 @@ resource "aws_iam_role" "ds_hub_role" {
 POLICY
 }
 
+resource "aws_iam_role_policy_attachment" "ds_hub" {
+  role       = aws_iam_role.ds_hub_role.name
+  policy_arn = aws_iam_policy.ds_hub_policy.arn
+}
+
 resource "aws_iam_instance_profile" "ds_runner_profile" {
   name = "ds-runner-${random_id.default.hex}"
   role = aws_iam_role.ds_runner_role.id
 }
 
-
-resource "aws_iam_role_policy" "ds_runner_policy" {
+resource "aws_iam_policy" "ds_runner_policy" {
   name   = "ds-hub-${random_id.default.hex}"
-  role   = aws_iam_role.ds_runner_role.id
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -291,6 +293,11 @@ resource "aws_iam_role" "ds_runner_role" {
   ]
 }
 POLICY
+}
+
+resource "aws_iam_role_policy_attachment" "ds_runner" {
+  role       = aws_iam_role.ds_runner_role.name
+  policy_arn = aws_iam_policy.ds_runner_policy.arn
 }
 
 resource "aws_iam_instance_profile" "ds_instance_profile" {
@@ -410,8 +417,8 @@ resource "aws_instance" "ds_hub" {
   key_name             = var.key_name
   subnet_id            = local.hub_subnet
 
-  vpc_security_group_ids = [aws_security_group.ds_hub_security_group.id]
-  ebs_optimized          = false
+  vpc_security_group_ids      = [aws_security_group.ds_hub_security_group.id]
+  ebs_optimized               = false
   associate_public_ip_address = var.associate_public_ip ? true : false
 
   depends_on = [aws_security_group.ds_hub_security_group,
