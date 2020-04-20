@@ -171,7 +171,7 @@ module "eks" {
   map_accounts = var.map_accounts
 }
 
-resource "aws_iam_policy" "ds_hub_policy" {
+resource "aws_iam_policy" "ds_hub" {
   name   = "ds-hub-policy-${random_id.default.hex}"
   policy = <<POLICY
 {
@@ -188,10 +188,7 @@ resource "aws_iam_policy" "ds_hub_policy" {
                 "ecr:TagResource",
                 "ecr:DescribeRepositories",
                 "ecr:ListImages",
-                "ecr:PutImage",
-                "route53:GetChange",
-                "route53:ChangeResourceRecordSets",
-                "route53:ListResourceRecordSets"
+                "ecr:PutImage"
             ],
             "Resource": [
                 "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
@@ -204,9 +201,7 @@ resource "aws_iam_policy" "ds_hub_policy" {
                 "arn:aws:ec2:${var.region}::image/${local.hub_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.cpu_runner_ami}",
                 "arn:aws:ec2:${var.region}::image/${local.gpu_runner_ami}",
-                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*",
-                "arn:aws:route53:::hostedzone/*",
-                "arn:aws:route53:::change/*"
+                "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*"
             ]
         },
         {
@@ -218,14 +213,39 @@ resource "aws_iam_policy" "ds_hub_policy" {
                 "ec2:DescribeKeyPairs",
                 "ecr:GetAuthorizationToken",
                 "iam:PassRole",
-                "route53:ListHostedZonesByName"
+                "kms:GenerateDataKey"
             ],
             "Resource": "*"
-       },
-       {
+       }
+    ]
+}
+POLICY
+}
+
+resource "aws_iam_policy" "ds_hub_route53" {
+  count = var.tls_config_mode == "dns_route53" ? 1 : 0
+
+  name   = "ds-hub-policy-route53-${random_id.default.hex}"
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+        {
             "Effect": "Allow",
             "Action": [
-                "kms:GenerateDataKey"
+                "route53:GetChange",
+                "route53:ChangeResourceRecordSets",
+                "route53:ListResourceRecordSets"
+            ],
+            "Resource": [
+                "arn:aws:route53:::hostedzone/${aws_route53_zone.ds_hub_subdomain[0].id}",
+                "arn:aws:route53:::change/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ListHostedZonesByName"
             ],
             "Resource": "*"
        }
@@ -255,7 +275,14 @@ POLICY
 
 resource "aws_iam_role_policy_attachment" "ds_hub" {
   role       = aws_iam_role.ds_hub_role.name
-  policy_arn = aws_iam_policy.ds_hub_policy.arn
+  policy_arn = aws_iam_policy.ds_hub.arn
+}
+
+resource "aws_iam_role_policy_attachment" "ds_hub_route53" {
+  count = var.tls_config_mode == "dns_route53" ? 1 : 0
+
+  role       = aws_iam_role.ds_hub_role.name
+  policy_arn = aws_iam_policy.ds_hub_route53[0].arn
 }
 
 resource "aws_iam_instance_profile" "ds_runner_profile" {
