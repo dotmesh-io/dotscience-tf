@@ -346,7 +346,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr], var.hub_ingress_cidrs, local.nat_cidrs, var.remote_runner_ingress_cidrs)) : x if x != ""]
+    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr], var.letsencrypt_ingress_cidrs, var.hub_ingress_cidrs, local.nat_cidrs, var.remote_runner_ingress_cidrs)) : x if x != ""]
     description = "Access to the Dotscience Hub web UI for the browser and from NAT gateway of the runners to the hub for Dotmesh"
   }
 
@@ -354,7 +354,7 @@ resource "aws_security_group" "ds_hub_security_group" {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr, var.letsencrypt_ingress_cidr], var.hub_ingress_cidrs, local.nat_cidrs, var.remote_runner_ingress_cidrs)) : x if x != ""]
+    cidr_blocks = [for x in distinct(concat([var.vpc_network_cidr], var.letsencrypt_ingress_cidrs, var.hub_ingress_cidrs, local.nat_cidrs, var.remote_runner_ingress_cidrs)) : x if x != ""]
     description = "Access to the Dotscience Hub web UI for the browser and from NAT gateway of the runners to the hub for Dotmesh"
   }
 
@@ -392,12 +392,14 @@ resource "aws_security_group" "ds_hub_security_group" {
 }
 
 resource "aws_eip_association" "eip_assoc" {
+  count         = var.associate_public_ip ? 1 : 0
   instance_id   = aws_instance.ds_hub.id
-  allocation_id = aws_eip.ds_eip.id
+  allocation_id = aws_eip.ds_eip[0].id
 }
 
 resource "aws_eip" "ds_eip" {
-  vpc = true
+  count = var.associate_public_ip ? 1 : 0
+  vpc   = true
 }
 
 resource "aws_ebs_volume" "ds_hub_volume" {
@@ -418,8 +420,8 @@ resource "aws_instance" "ds_hub" {
   subnet_id            = local.hub_subnet
 
   vpc_security_group_ids      = [aws_security_group.ds_hub_security_group.id]
-  associate_public_ip_address = true
   ebs_optimized               = false
+  associate_public_ip_address = var.associate_public_ip ? true : false
 
   depends_on = [aws_security_group.ds_hub_security_group,
     aws_ebs_volume.ds_hub_volume,
@@ -441,7 +443,7 @@ resource "aws_instance" "ds_hub" {
               echo "Starting Dotscience hub"  
               sudo wget -O /usr/local/bin/ds-startup https://storage.googleapis.com/dotscience-startup/${var.dotscience_startup_version}/ds-startup
               sudo chmod +wx /usr/local/bin/ds-startup
-              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}" --repository-url "${aws_ecr_repository.ds_registry.repository_url}" --runner-iam-profile-arn "${aws_iam_instance_profile.ds_runner_profile.arn}"
+              ds-startup --admin-password "${var.admin_password}" --hub-size "${var.hub_volume_size}" --hub-device "/dev/nvme1n1" --use-kms "true" --license-key "${var.license_key}" --hub-hostname "${local.hub_hostname}" --cmk-id "${aws_kms_key.ds_kms_key.id}" --aws-region "${var.region}" --aws-sshkey "${var.key_name}" --aws-runner-sg "${aws_security_group.ds_runner_security_group.id}" --aws-subnet-id "${local.runner_subnet}" --aws-cpu-runner-image "${var.amis[var.region].CPURunner}" --aws-gpu-runner-image "${local.gpu_runner_ami}" --grafana-user "${var.grafana_admin_user}" --grafana-host "${local.grafana_host}"  --grafana-password "${var.grafana_admin_password}" --letsencrypt-mode "${var.letsencrypt_mode}" --deployer-token "${random_id.deployer_token.hex}" --deployment-ingress-class "nginx" --deployment-subdomain ".${local.deployer_model_subdomain}" --repository-url "${aws_ecr_repository.ds_registry.repository_url}" --runner-iam-profile-arn "${aws_iam_instance_profile.ds_runner_profile.arn}" --tls-config-mode "${var.tls_config_mode}" --aws-hosted-zone-id "${local.route53_zone_id}"
               DATA_DEVICE=$(df --output=source /opt/dotscience-aws/ | tail -1)
               e2label $DATA_DEVICE data
               echo "LABEL=data      /opt/dotscience-aws      ext4   defaults,discard        0 0" >> /etc/fstab
@@ -603,4 +605,32 @@ resource "aws_autoscaling_attachment" "asg_attachment_bar" {
   count                  = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
   autoscaling_group_name = module.eks.workers_asg_names[0]
   alb_target_group_arn   = aws_lb_target_group.ds_model_front_end_tg[0].arn
+}
+
+data "aws_route53_zone" "ds_domain" {
+  count = var.tls_config_mode == "dns_route53" ? 1 : 0
+  name  = var.hub_route53_domain
+}
+
+resource "aws_route53_zone" "ds_hub_subdomain" {
+  count = var.tls_config_mode == "dns_route53" ? 1 : 0
+  name  = local.route53_hub_hostname
+}
+
+resource "aws_route53_record" "ds_hub_subdomain_ns" {
+  count   = var.tls_config_mode == "dns_route53" ? 1 : 0
+  zone_id = data.aws_route53_zone.ds_domain[0].zone_id
+  name    = local.route53_hub_hostname
+  type    = "NS"
+  ttl     = "60"
+  records = aws_route53_zone.ds_hub_subdomain[0].name_servers
+}
+
+resource "aws_route53_record" "ds_hub_subdomain" {
+  count   = var.tls_config_mode == "dns_route53" ? 1 : 0
+  zone_id = aws_route53_zone.ds_hub_subdomain[0].zone_id
+  name    = local.route53_hub_hostname
+  type    = "A"
+  ttl     = "10"
+  records = [local.hub_ip]
 }
