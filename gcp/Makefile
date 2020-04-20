@@ -20,5 +20,5 @@ init: install-plugin
 plan:
 	terraform plan -var-file=inputs.tfvars
 
-clean:
-	rm -rf .terraform terraform.tfstate terraform.tfstate.*
+clean-state:
+	rm -rf terraform.tfstate terraform.tfstate.*

@@ -16,5 +16,5 @@ plan:
 destroy:
 	terraform destroy -var-file=inputs.tfvars -auto-approve
 
-clean:
-	rm -rf .terraform terraform.tfstate terraform.tfstate.*
+clean-state:
+	rm -rf terraform.tfstate terraform.tfstate.*
