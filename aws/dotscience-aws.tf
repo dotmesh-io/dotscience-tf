@@ -504,7 +504,7 @@ resource "aws_dlm_lifecycle_policy" "example" {
       name = "2 weeks of daily snapshots"
 
       create_rule {
-        interval      = 1
+        interval      = 24
         interval_unit = "HOURS"
         times         = ["11:50"]
       }
