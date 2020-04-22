@@ -191,3 +191,4 @@ variable "associate_public_ip" {
   description = "Route53 root domain that you control"
   default     = true
 }
+
