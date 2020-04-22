@@ -436,6 +436,7 @@ resource "aws_ebs_volume" "ds_hub_volume" {
   availability_zone = data.aws_availability_zone.regional_az.name
   size              = var.hub_volume_size
   type              = "gp2"
+  encrypted         = true
 
   tags = {
     Name = "ds-hub-volume-${random_id.default.hex}"
