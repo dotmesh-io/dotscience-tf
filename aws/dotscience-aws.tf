@@ -444,7 +444,7 @@ resource "aws_ebs_volume" "ds_hub_volume" {
 }
 
 resource "aws_iam_role" "dlm_lifecycle_role" {
-  name = "dlm-lifecycle-role"
+  name = "dlm-lifecycle-role-${local.cluster_name}"
 
   assume_role_policy = <<EOF
 {
@@ -464,7 +464,7 @@ EOF
 }
 
 resource "aws_iam_role_policy" "dlm_lifecycle" {
-  name = "dlm-lifecycle-policy"
+  name = "dlm-lifecycle-policy-${local.cluster_name}"
   role = aws_iam_role.dlm_lifecycle_role.id
 
   policy = <<EOF
@@ -515,7 +515,7 @@ resource "aws_dlm_lifecycle_policy" "example" {
       }
 
       tags_to_add = {
-        SnapshotCreator = "DLM"
+        SnapshotCreator = "DotscienceDLM"
       }
 
       copy_tags = true
