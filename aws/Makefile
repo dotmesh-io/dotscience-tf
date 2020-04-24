@@ -14,4 +14,4 @@ destroy:
 	terraform destroy -var-file=inputs.tfvars -auto-approve
 
 clean:
-	rm -rf .terraform terraform.tfstate terraform.tfstate.*
+	rm -rf terraform.tfstate terraform.tfstate.*
