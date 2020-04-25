@@ -441,6 +441,11 @@ resource "aws_ebs_volume" "ds_hub_volume" {
   tags = {
     Name = "ds-hub-volume-${random_id.default.hex}"
   }
+
+  lifecycle = {
+    prevent_destroy = true
+  }
+
 }
 
 resource "aws_iam_role" "dlm_lifecycle_role" {
