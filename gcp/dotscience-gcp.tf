@@ -134,6 +134,11 @@ resource "google_compute_disk" "dotscience_hub_disk" {
   zone     = local.zone
   size     = var.hub_volume_size
   snapshot = var.restore_from_backup
+
+  lifecycle = {
+    prevent_destroy = true
+  }
+
 }
 
 resource "google_compute_disk_resource_policy_attachment" "attachment" {
