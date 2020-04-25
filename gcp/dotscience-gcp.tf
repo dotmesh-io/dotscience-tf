@@ -135,7 +135,7 @@ resource "google_compute_disk" "dotscience_hub_disk" {
   size     = var.hub_volume_size
   snapshot = var.restore_from_backup
 
-  lifecycle = {
+  lifecycle {
     prevent_destroy = true
   }
 
