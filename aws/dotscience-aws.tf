@@ -442,7 +442,7 @@ resource "aws_ebs_volume" "ds_hub_volume" {
     Name = "ds-hub-volume-${random_id.default.hex}"
   }
 
-  lifecycle = {
+  lifecycle {
     prevent_destroy = true
   }
 
