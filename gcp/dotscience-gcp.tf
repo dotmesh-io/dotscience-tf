@@ -137,7 +137,7 @@ resource "google_compute_disk" "dotscience_hub_disk" {
 
   lifecycle {
     # Prevent destruction of the hub disk if data loss is not permitted.
-    prevent_destroy = !var.permit_data_loss
+    prevent_destroy = var.permit_data_loss ? false : true
   }
 
 }
