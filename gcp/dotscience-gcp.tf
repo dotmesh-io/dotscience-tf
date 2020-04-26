@@ -132,7 +132,7 @@ resource "google_compute_disk" "dotscience_hub_disk" {
   name     = "dotscience-hub-disk-${random_id.default.hex}"
   type     = "pd-ssd"
   zone     = local.zone
-  size     = 100
+  size     = var.hub_volume_size
   snapshot = var.restore_from_backup
 }
 
