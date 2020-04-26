@@ -109,3 +109,8 @@ variable "restore_from_backup" {
   type        = string
   default     = ""
 }
+
+variable "permit_data_loss" {
+  description = "Whether to allow hub attached disk to be deleted - you have to set this to true if you want to destroy the whole stack"
+  default     = false
+}

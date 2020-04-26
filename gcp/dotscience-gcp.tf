@@ -136,7 +136,8 @@ resource "google_compute_disk" "dotscience_hub_disk" {
   snapshot = var.restore_from_backup
 
   lifecycle {
-    prevent_destroy = true
+    # Prevent destruction of the hub disk if data loss is not permitted.
+    prevent_destroy = !var.permit_data_loss
   }
 
 }

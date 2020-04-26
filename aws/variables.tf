@@ -192,3 +192,7 @@ variable "associate_public_ip" {
   default     = true
 }
 
+variable "permit_data_loss" {
+  description = "Whether to allow hub EBS volume to be deleted - you have to set this to true if you want to destroy the whole stack"
+  default     = false
+}
