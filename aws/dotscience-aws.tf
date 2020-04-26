@@ -441,12 +441,6 @@ resource "aws_ebs_volume" "ds_hub_volume" {
   tags = {
     Name = "ds-hub-volume-${random_id.default.hex}"
   }
-
-  lifecycle {
-    # Prevent destruction of the hub disk if data loss is not permitted.
-    prevent_destroy = var.permit_data_loss ? false : true
-  }
-
 }
 
 resource "aws_iam_role" "dlm_lifecycle_role" {

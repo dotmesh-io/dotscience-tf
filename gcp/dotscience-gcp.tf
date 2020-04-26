@@ -132,14 +132,8 @@ resource "google_compute_disk" "dotscience_hub_disk" {
   name     = "dotscience-hub-disk-${random_id.default.hex}"
   type     = "pd-ssd"
   zone     = local.zone
-  size     = var.hub_volume_size
+  size     = 100
   snapshot = var.restore_from_backup
-
-  lifecycle {
-    # Prevent destruction of the hub disk if data loss is not permitted.
-    prevent_destroy = var.permit_data_loss ? false : true
-  }
-
 }
 
 resource "google_compute_disk_resource_policy_attachment" "attachment" {
