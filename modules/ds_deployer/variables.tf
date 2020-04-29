@@ -8,18 +8,6 @@ variable hub_hostname {
   type        = string
 }
 
-variable "webrelay_key" {
-  description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type        = string
-  default     = "b06e261f-074e-47b5-bfbe-4d6d94ccd6f4"
-}
-
-variable "webrelay_secret" {
-  description = "Secret from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
-  type        = string
-  default     = "4rAW5vq0D7uN"
-}
-
 variable "create_deployer" {
   description = "Toggle for conditionally creating the deployer"
   type        = string
@@ -47,5 +35,5 @@ variable "kubernetes_token" {
 
 variable "model_deployment_mode" {
   description = "Set to 'aws-ga' to host models on model-abc.1-2-3-4.your.dotscience.com or 'route53' to host models on model-abc.your.domain.com"
-  default = "aws-ga"
+  default     = "aws-ga"
 }

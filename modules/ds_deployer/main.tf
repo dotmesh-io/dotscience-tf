@@ -245,7 +245,7 @@ resource "helm_release" "nginx-ingress" {
 
 resource "kubernetes_service" "ingress_lb" {
 
-  count = var.create_deployer ? 1 : 0
+  count = var.create_deployer && var.model_deployment_mode == "aws_eip" ? 1 : 0
 
   metadata {
     name = "external-ingress"
@@ -257,9 +257,9 @@ resource "kubernetes_service" "ingress_lb" {
   }
   spec {
     selector = {
-      "app"       = "nginx-ingress"
+      "app"                         = "nginx-ingress"
       "app.kubernetes.io/component" = "controller"
-      "release"   = "nginx-ingress"
+      "release"                     = "nginx-ingress"
     }
 
     port {
@@ -274,6 +274,36 @@ resource "kubernetes_service" "ingress_lb" {
   }
 }
 
+resource "kubernetes_service" "ingress_lb_for_route53" {
+
+  count = var.create_deployer && var.model_deployment_mode == "dns_route53" ? 1 : 0
+
+  metadata {
+    name = "external-ingress"
+    labels = {
+      "app"                         = "nginx-ingress"
+      "app.kubernetes.io/component" = "controller"
+      "release"                     = "nginx-ingress"
+    }
+  }
+  spec {
+    selector = {
+      "app"                         = "nginx-ingress"
+      "app.kubernetes.io/component" = "controller"
+      "release"                     = "nginx-ingress"
+    }
+
+    port {
+      name        = "app"
+      port        = 80
+      target_port = "http"
+      protocol    = "TCP"
+    }
+
+    type = "LoadBalancer"
+  }
+}
+
 locals {
-  ingress_host = var.dotscience_environment == "aws" ? ["<NodePort on 30080>"] : kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
+  ingress_host = var.dotscience_environment == "aws" ? var.model_deployment_mode == "aws_eip" ? ["Nodeport on 30080"] : kubernetes_service.ingress_lb_for_route53[*].load_balancer_ingress[0].hostname : kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
 }

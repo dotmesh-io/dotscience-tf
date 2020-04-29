@@ -103,6 +103,7 @@ module "vpc" {
 module "ds_deployer" {
   source                 = "../modules/ds_deployer"
   create_deployer        = var.create_deployer && var.create_eks ? 1 : 0
+  model_deployment_mode  = local.model_deployment_mode
   hub_hostname           = local.hub_hostname
   deployer_token         = local.deployer_token
   kubernetes_host        = element(concat(data.aws_eks_cluster.cluster[*].endpoint, list("")), 0)

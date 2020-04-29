@@ -163,12 +163,12 @@ variable "environment" {
 }
 
 variable "dotscience_domain" {
-  description = "Domain name that you control, in which to deploy dotscience Hub to, eg. dotscience.example-corp.com. Currently defaults to a wildcard DNS server that is maintained by Dotscience"
+  description = "Domain name that you control, in which to deploy dotscience Hub to, eg. dotscience.example-corp.com. Setting this to 'your.dotscience.com' sets up Dotscience Hub on ip-address.your.dotscience.com. Set this to a Route53 domain that you control to enable route53 based DNS"
   default     = "your.dotscience.net"
 }
 
 variable "tls_config_mode" {
-  description = "TLS configuration can be set to 'http' or 'dns_route53'"
+  description = "TLS configuration can be set to 'http' or 'dns_route53'. Setting this to 'http' uses Let's encrypt HTTP challenge to get SSL certs, setting this to 'dns_route53' uses Let's encrypt DNS-01 challenge to get SSL certs"
   default     = "http"
 }
 
