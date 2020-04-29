@@ -125,16 +125,6 @@ variable "map_users" {
   ]
 }
 
-variable "dotscience_domain" {
-  description = "Domain name that you control, in which to deploy dotscience Hub to, eg. dotscience.example-corp.com. Currently defaults to a wildcard DNS server that is maintained by Dotscience"
-  default     = "your.dotscience.net"
-}
-
-variable "model_deployment_domain" {
-  description = "Domain name that you control the name servers for, into which model deployments go into. See docs https://docs.dotscience.com/install/tf-aws/"
-  default     = "your.dotscience.net"
-}
-
 variable "webrelay_key" {
   description = "Key from https://my.webhookrelay.com/tokens (temporarily while we migrate to in-cluster relay)"
   default     = "b06e261f-074e-47b5-bfbe-4d6d94ccd6f4"
@@ -172,9 +162,9 @@ variable "environment" {
   default     = "ds"
 }
 
-variable "model_deployment_mode" {
-  description = "Set to 'aws-eip' to host models on model-abc.1-2-3-4.your.dotscience.net or 'route53' to host models on model-abc.your.domain.com"
-  default     = "aws-eip"
+variable "dotscience_domain" {
+  description = "Domain name that you control, in which to deploy dotscience Hub to, eg. dotscience.example-corp.com. Currently defaults to a wildcard DNS server that is maintained by Dotscience"
+  default     = "your.dotscience.net"
 }
 
 variable "tls_config_mode" {
@@ -182,13 +172,8 @@ variable "tls_config_mode" {
   default     = "http"
 }
 
-variable "hub_route53_domain" {
-  description = "Route53 root domain that you control"
-  default     = ""
-}
-
 variable "associate_public_ip" {
-  description = "Route53 root domain that you control"
+  description = "Associate a public IP address to the Dotscience Hub instance, setting this to true creates an EIP that routes requests to this instance."
   default     = true
 }
 

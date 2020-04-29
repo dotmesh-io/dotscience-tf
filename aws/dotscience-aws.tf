@@ -38,7 +38,6 @@ data "aws_availability_zone" "regional_az" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  hub_ip                   = var.associate_public_ip ? aws_eip.ds_eip[0].public_ip : aws_instance.ds_hub.private_ip
   hub_subnet               = module.vpc.public_subnets[0]
   runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
@@ -49,11 +48,14 @@ locals {
   cpu_runner_ami           = var.amis[var.region].CPURunner
   gpu_runner_ami           = var.amis[var.region].GPURunner
   nat_cidrs                = [for ip in module.vpc.nat_public_ips : "${ip}/32"]
-  deployer_model_subdomain = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${local.cluster_name}.${var.model_deployment_domain}"
-  route53_hub_hostname     = "${var.environment}.${var.hub_route53_domain}"
-  default_hub_hostname     = var.associate_public_ip ? join("", ["hub-", replace(aws_eip.ds_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : ""
-  route53_zone_id          = var.tls_config_mode == "dns_route53" ? aws_route53_zone.ds_hub_subdomain[0].zone_id : ""
-  hub_hostname             = var.tls_config_mode == "dns_route53" ? local.route53_hub_hostname : local.default_hub_hostname
+  deployer_model_subdomain = var.create_deployer && var.create_eks && local.model_deployment_mode == "aws-eip" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${var.environment}.${var.dotscience_domain}"
+
+  route53_hub_hostname  = "${var.environment}.${var.dotscience_domain}"
+  model_deployment_mode = var.dotscience_domain == "your.dotscience.com" ? "aws-eip" : "dns_route53"
+
+  hub_ip          = var.associate_public_ip ? aws_eip.ds_eip[0].public_ip : aws_instance.ds_hub.private_ip
+  route53_zone_id = var.tls_config_mode == "dns_route53" ? aws_route53_zone.ds_hub_subdomain[0].zone_id : ""
+  hub_hostname    = var.tls_config_mode == "dns_route53" ? local.route53_hub_hostname : join("", ["hub-", replace(aws_eip.ds_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain])
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -541,7 +543,7 @@ resource "aws_instance" "ds_hub" {
 
   vpc_security_group_ids      = [aws_security_group.ds_hub_security_group.id]
   ebs_optimized               = false
-  associate_public_ip_address = var.associate_public_ip ? true : false
+  associate_public_ip_address = false
 
   depends_on = [aws_security_group.ds_hub_security_group,
     aws_ebs_volume.ds_hub_volume,
@@ -648,12 +650,12 @@ resource "local_file" "ds_env_file" {
 }
 
 resource "aws_route53_zone" "model_deployments_subdomain" {
-  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "route53" ? 1 : 0
+  count = var.create_deployer && var.create_eks && local.model_deployment_mode == "dns_route53" ? 1 : 0
   name  = local.deployer_model_subdomain
 }
 
 resource "aws_route53_record" "model_deployments_subdomain" {
-  count   = var.create_deployer && var.create_eks && var.model_deployment_mode == "route53" ? 1 : 0
+  count   = var.create_deployer && var.create_eks && local.model_deployment_mode == "dns_route53" ? 1 : 0
   zone_id = aws_route53_zone.model_deployments_subdomain[0].zone_id
   name    = "*.${local.deployer_model_subdomain}"
   type    = "CNAME"
@@ -662,12 +664,12 @@ resource "aws_route53_record" "model_deployments_subdomain" {
 }
 
 data "aws_route53_zone" "model_deployments_domain" {
-  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "route53" ? 1 : 0
-  name  = var.model_deployment_domain
+  count = var.create_deployer && var.create_eks && local.model_deployment_mode == "dns_route53" ? 1 : 0
+  name  = var.dotscience_domain
 }
 
 resource "aws_route53_record" "model_deployments_domain_ns" {
-  count   = var.create_deployer && var.create_eks && var.model_deployment_mode == "route53" ? 1 : 0
+  count   = var.create_deployer && var.create_eks && local.model_deployment_mode == "dns_route53" ? 1 : 0
   zone_id = data.aws_route53_zone.model_deployments_domain[0].zone_id
   name    = local.deployer_model_subdomain
   type    = "NS"
@@ -676,12 +678,12 @@ resource "aws_route53_record" "model_deployments_domain_ns" {
 }
 
 resource "aws_eip" "ds_model_eip" {
-  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+  count = var.create_deployer && var.create_eks && local.model_deployment_mode == "aws-eip" ? 1 : 0
   vpc   = true
 }
 
 resource "aws_lb" "ds_model_nlb" {
-  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+  count = var.create_deployer && var.create_eks && local.model_deployment_mode == "aws-eip" ? 1 : 0
 
   # An NLB to associate with an EIP, pointing to nginx on NodePort on the
   # workers in Kubernetes. We can't express this directly in Kubernetes because
@@ -697,7 +699,7 @@ resource "aws_lb" "ds_model_nlb" {
 }
 
 resource "aws_lb_listener" "ds_model_front_end" {
-  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+  count = var.create_deployer && var.create_eks && local.model_deployment_mode == "aws-eip" ? 1 : 0
 
   load_balancer_arn = aws_lb.ds_model_nlb[0].arn
   port              = "80"
@@ -709,7 +711,7 @@ resource "aws_lb_listener" "ds_model_front_end" {
 }
 
 resource "aws_lb_target_group" "ds_model_front_end_tg" {
-  count = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+  count = var.create_deployer && var.create_eks && local.model_deployment_mode == "aws-eip" ? 1 : 0
 
   target_type = "instance"
   port        = 30080
@@ -722,14 +724,14 @@ resource "aws_lb_target_group" "ds_model_front_end_tg" {
 }
 
 resource "aws_autoscaling_attachment" "asg_attachment_bar" {
-  count                  = var.create_deployer && var.create_eks && var.model_deployment_mode == "aws-eip" ? 1 : 0
+  count                  = var.create_deployer && var.create_eks && local.model_deployment_mode == "aws-eip" ? 1 : 0
   autoscaling_group_name = module.eks.workers_asg_names[0]
   alb_target_group_arn   = aws_lb_target_group.ds_model_front_end_tg[0].arn
 }
 
 data "aws_route53_zone" "ds_domain" {
   count = var.tls_config_mode == "dns_route53" ? 1 : 0
-  name  = var.hub_route53_domain
+  name  = var.dotscience_domain
 }
 
 resource "aws_route53_zone" "ds_hub_subdomain" {
