@@ -245,7 +245,7 @@ resource "helm_release" "nginx-ingress" {
 
 resource "kubernetes_service" "ingress_lb" {
 
-  count = var.create_deployer && var.model_deployment_mode == "aws_eip" ? 1 : 0
+  count = var.create_deployer && var.model_deployment_mode == "aws-eip" ? 1 : 0
 
   metadata {
     name = "external-ingress"
@@ -305,5 +305,5 @@ resource "kubernetes_service" "ingress_lb_for_route53" {
 }
 
 locals {
-  ingress_host = var.dotscience_environment == "aws" ? var.model_deployment_mode == "aws_eip" ? ["Nodeport on 30080"] : kubernetes_service.ingress_lb_for_route53[*].load_balancer_ingress[0].hostname : kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
+  ingress_host = var.dotscience_environment == "aws" ? var.model_deployment_mode == "aws-eip" ? ["Nodeport on 30080"] : kubernetes_service.ingress_lb_for_route53[*].load_balancer_ingress[0].hostname : kubernetes_service.ingress_lb[*].load_balancer_ingress[0].ip
 }

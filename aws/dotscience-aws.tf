@@ -41,7 +41,6 @@ locals {
   hub_subnet               = module.vpc.public_subnets[0]
   runner_subnet            = module.vpc.private_subnets[0]
   deployer_token           = random_id.deployer_token.hex
-  ingress_elb_name         = var.create_deployer && var.create_eks ? module.ds_deployer.ingress_host[0] : ""
   cluster_name             = "${var.environment}-${random_id.default.hex}"
   grafana_host             = var.create_monitoring && var.create_eks ? module.ds_monitoring.grafana_host : ""
   hub_ami                  = var.amis[var.region].Hub
@@ -51,7 +50,7 @@ locals {
   deployer_model_subdomain = var.create_deployer && var.create_eks && local.model_deployment_mode == "aws-eip" ? join("", ["model-", replace(aws_eip.ds_model_eip[0].public_ip, ".", "-"), ".", var.dotscience_domain]) : "model-${var.environment}.${var.dotscience_domain}"
 
   route53_hub_hostname  = "${var.environment}.${var.dotscience_domain}"
-  model_deployment_mode = var.dotscience_domain == "your.dotscience.com" ? "aws-eip" : "dns_route53"
+  model_deployment_mode = var.dotscience_domain == "your.dotscience.net" ? "aws-eip" : "dns_route53"
 
   hub_ip          = var.associate_public_ip ? aws_eip.ds_eip[0].public_ip : aws_instance.ds_hub.private_ip
   route53_zone_id = var.tls_config_mode == "dns_route53" ? aws_route53_zone.ds_hub_subdomain[0].zone_id : ""
@@ -661,7 +660,7 @@ resource "aws_route53_record" "model_deployments_subdomain" {
   name    = "*.${local.deployer_model_subdomain}"
   type    = "CNAME"
   ttl     = "60"
-  records = [local.ingress_elb_name]
+  records = [module.ds_deployer.ingress_host[0]]
 }
 
 data "aws_route53_zone" "model_deployments_domain" {
