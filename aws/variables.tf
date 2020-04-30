@@ -75,8 +75,8 @@ variable "eks_cluster_worker_instance_type" {
   default = "t3.small"
 }
 
-variable "eks_cluster_worker_count" {
-  default = 2
+variable "eks_cluster_worker_count" { //Must be atleast 3 to cover all subnets in a region.
+  default = 3
 }
 
 variable "amis" {
