@@ -151,6 +151,8 @@ module "eks" {
   cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
   worker_additional_security_group_ids = [aws_security_group.eks_additional_ingress_security_group.id]
 
+  cluster_version = "1.15"
+
   tags = {
     Environment = local.cluster_name
     GithubRepo  = "terraform-aws-eks"
@@ -445,7 +447,7 @@ resource "aws_ebs_volume" "ds_hub_volume" {
   }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
 }
