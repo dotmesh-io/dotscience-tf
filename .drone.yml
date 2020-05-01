@@ -1,27 +1,27 @@
-kind: pipeline
-type: docker
-name: default
+# kind: pipeline
+# type: docker
+# name: default
 
-steps:
-- name: aws-trigger-e2e-firecracker
-  image: arwineap/docker-alpine-toolbox:latest
-  environment:
-    E2E_TRIGGER_TOKEN:
-      from_secret: e2e_trigger_token_firecracker
-  when:
-    event: [ push, pull_request, tag ]
-    status: success
-  commands:
-    - id=$(curl -X POST -F "token=$${E2E_TRIGGER_TOKEN}" -F "ref=master" -F "variables[DOTSCIENCE_TF_CLOUD_PROVIDER]=aws" -F "variables[DOTSCIENCE_TF_COMMIT_HASH]=$${DRONE_COMMIT}" -F "variables[DOTSCIENCE_TF_BRANCH]=$${DRONE_BRANCH}" https://gitlab.dotmesh.com/api/v4/projects/dotmesh%2Fe2e-firecracker-sync/trigger/pipeline | jq .id)
-    - echo "Triggered successfully, aws pipeline - https://gitlab.dotmesh.com/dotmesh/e2e-firecracker-sync/pipelines/$${id}"
-- name: gcp-trigger-e2e-firecracker
-  image: arwineap/docker-alpine-toolbox:latest
-  environment:
-    E2E_TRIGGER_TOKEN:
-      from_secret: e2e_trigger_token_firecracker
-  when:
-    event: [ push, pull_request, tag ]
-    status: success
-  commands:
-    - id=$(curl -X POST -F "token=$${E2E_TRIGGER_TOKEN}" -F "ref=master" -F "variables[DOTSCIENCE_TF_CLOUD_PROVIDER]=gcp" -F "variables[DOTSCIENCE_TF_COMMIT_HASH]=$${DRONE_COMMIT}" -F "variables[DOTSCIENCE_TF_BRANCH]=$${DRONE_BRANCH}" https://gitlab.dotmesh.com/api/v4/projects/dotmesh%2Fe2e-firecracker-sync/trigger/pipeline | jq .id)
-    - echo "Triggered successfully, gcp pipeline - https://gitlab.dotmesh.com/dotmesh/e2e-firecracker-sync/pipelines/$${id}"
+# steps:
+# - name: aws-trigger-e2e-firecracker
+#   image: arwineap/docker-alpine-toolbox:latest
+#   environment:
+#     E2E_TRIGGER_TOKEN:
+#       from_secret: e2e_trigger_token_firecracker
+#   when:
+#     event: [ push, pull_request, tag ]
+#     status: success
+#   commands:
+#     - id=$(curl -X POST -F "token=$${E2E_TRIGGER_TOKEN}" -F "ref=master" -F "variables[DOTSCIENCE_TF_CLOUD_PROVIDER]=aws" -F "variables[DOTSCIENCE_TF_COMMIT_HASH]=$${DRONE_COMMIT}" -F "variables[DOTSCIENCE_TF_BRANCH]=$${DRONE_BRANCH}" https://gitlab.dotmesh.com/api/v4/projects/dotmesh%2Fe2e-firecracker-sync/trigger/pipeline | jq .id)
+#     - echo "Triggered successfully, aws pipeline - https://gitlab.dotmesh.com/dotmesh/e2e-firecracker-sync/pipelines/$${id}"
+# - name: gcp-trigger-e2e-firecracker
+#   image: arwineap/docker-alpine-toolbox:latest
+#   environment:
+#     E2E_TRIGGER_TOKEN:
+#       from_secret: e2e_trigger_token_firecracker
+#   when:
+#     event: [ push, pull_request, tag ]
+#     status: success
+#   commands:
+#     - id=$(curl -X POST -F "token=$${E2E_TRIGGER_TOKEN}" -F "ref=master" -F "variables[DOTSCIENCE_TF_CLOUD_PROVIDER]=gcp" -F "variables[DOTSCIENCE_TF_COMMIT_HASH]=$${DRONE_COMMIT}" -F "variables[DOTSCIENCE_TF_BRANCH]=$${DRONE_BRANCH}" https://gitlab.dotmesh.com/api/v4/projects/dotmesh%2Fe2e-firecracker-sync/trigger/pipeline | jq .id)
+#     - echo "Triggered successfully, gcp pipeline - https://gitlab.dotmesh.com/dotmesh/e2e-firecracker-sync/pipelines/$${id}"
